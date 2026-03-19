@@ -8,8 +8,8 @@
   "sources": {
     "rss": [
       {
-        "name": "Tech News Sample",
-        "url": "https://example.com/rss",
+        "name": "Googleニュース（日本）",
+        "url": "https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja",
         "max_items": 20
       }
     ],
