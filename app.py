@@ -1,5 +1,6 @@
 import sys
 
+from src.output_handler import save_markdown
 from src.pipelines.rss_pipeline import run_rss_pipeline
 
 
@@ -14,11 +15,13 @@ def main() -> int:
 
     try:
         markdown = run_rss_pipeline(config_path)
+        output_path = save_markdown(markdown)
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
     print(markdown)
+    print(f"Saved to: {output_path}")
     return 0
 
 
