@@ -8,8 +8,8 @@
   "sources": {
     "rss": [
       {
-        "name": "Googleニュース（日本）",
-        "url": "https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja",
+        "name": "Hugging Face Blog",
+        "url": "https://huggingface.co/blog/feed.xml",
         "max_items": 20
       }
     ],
@@ -19,13 +19,29 @@
 
   "monitoring": {
     "enabled": true,
-    "keywords": [
-      "AI",
-      "Claude Code",
-      "OpenAI",
-      "LLM",
-      "自動化"
-    ],
+   "keywords": [
+  "AI",
+  "人工知能",
+  "生成AI",
+  "ChatGPT",
+  "OpenAI",
+  "Claude",
+  "Claude Code",
+  "Codex",
+  "LLM",
+  "大規模言語モデル",
+  "agent",
+  "agents",
+  "transformers",
+  "model",
+  "models",
+  "open source",
+  "local AI",
+  "機械学習",
+  "ディープラーニング",
+  "推論",
+  "自動化"
+],
     "match_mode": "partial"
   },
 
