@@ -1,3 +1,11 @@
+import html
+import re
+
+
+TAG_PATTERN = re.compile(r"<[^>]+>")
+WHITESPACE_PATTERN = re.compile(r"\s+")
+
+
 def normalize_rss_entries(entries: list[dict]) -> list[dict]:
     if not isinstance(entries, list):
         raise TypeError("entries must be a list.")
@@ -15,7 +23,10 @@ def normalize_rss_entries(entries: list[dict]) -> list[dict]:
                 "title": entry.get("title", ""),
                 "url": entry.get("link", ""),
                 "published_at": entry.get("published", ""),
-                "summary": entry.get("summary", ""),
+                "summary": WHITESPACE_PATTERN.sub(
+                    " ",
+                    html.unescape(TAG_PATTERN.sub(" ", entry.get("summary", ""))),
+                ).strip(),
             }
         )
 

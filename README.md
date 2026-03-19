@@ -11,6 +11,7 @@ Smart-Catch は、公開されている RSS 情報を取得し、キーワード
 - JSON 設定ファイルを読み込む
 - `sources.rss` の先頭 1 件を使って RSS を取得する
 - RSS 記事を内部で扱いやすい最小構造へ正規化する
+- RSS `summary` に含まれる HTML タグを除去する
 - `monitoring.keywords` を使って記事本文要約とタイトルに対するキーワード部分一致判定を行う
 - 判定結果を Markdown 文字列へ変換する
 - CLI から実行し、結果を標準出力へ表示する
@@ -20,7 +21,6 @@ Smart-Catch は、公開されている RSS 情報を取得し、キーワード
 - 複数 RSS 情報源の順次処理
 - 取得結果のファイル保存
 - Markdown の保存先制御
-- RSS `summary` に含まれる HTML の除去
 - GUI / Web アプリとしての実行
 - 高度な分類、スコアリング、ランキング
 - 自動テストの整備
@@ -191,7 +191,7 @@ python app.py config/config.json
 - 出力は Markdown 文字列であり、保存処理は未実装です
 - 初回版は RSS 先頭 1 件のみ処理します
 - 複数 RSS の処理は未実装です
-- RSS `summary` に HTML が含まれていても除去しません
+- RSS `summary` の HTML タグ除去は行いますが、高度な整形は行いません
 - 公開情報のみを前提としています
 
 ## 11. 今後の拡張候補
@@ -201,7 +201,7 @@ python app.py config/config.json
 - 複数 RSS 情報源の処理
 - Markdown のファイル保存
 - monitoring / exploration の出力分離
-- summary の HTML 整形
+- `summary` の空白整形や本文品質の改善
 - 手動確認に加えた自動テスト整備
 
 これらは README 執筆時点では実装されていません。
@@ -211,6 +211,7 @@ python app.py config/config.json
 - `https://example.com/rss` のようなダミー URL では動作しません
 - 実行には到達可能な実在 RSS URL が必要です
 - RSS の `summary` に HTML が含まれる場合があります
+- 現在は `summary` の HTML タグのみ除去し、内容の高度な整形までは行いません
 - 現時点ではファイル保存を行いません
 - 現時点では単一 RSS のみを処理します
 - 取得対象は公開情報に限定してください

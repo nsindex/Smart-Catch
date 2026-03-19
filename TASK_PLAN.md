@@ -1,641 +1,204 @@
-# TASK_PLAN.md（初回版 v0.1）
-
 ## 1. 目的
 
-本ドキュメントは、情報収集アプリのMVPを安全に実装するために、実装作業を小粒度タスクへ分解し、実行順序・依存関係・完了条件を固定するための計画書である。
+本ドキュメントは、Smart-Catch の現在の開発進捗を整理し、完了済みタスクと今後の実装タスクを明確にすることを目的とする。  
+本バージョンでは「実装済み状態」を正とし、未実装タスクとの差分を可視化する。
 
 ---
 
-## 2. タスク分解方針
+## 2. 現在の開発フェーズ
 
-本プロジェクトでは以下のルールでタスクを定義する。
+現在は以下の状態である。
 
-・1タスク = 1変更目的  
-・1タスク = 1主要責務  
-・変更対象ファイルは最小限にする  
-・依存追加は禁止（提案のみ）  
-・各タスクに Done Criteria と Check Method を定義する  
-・Codex への依頼は 1依頼 = 1タスク とする
+・MVP（最小構成）は完成している  
+・CLIからE2E実行が可能  
+・基本的な改善サイクル（1回）が完了している
 
----
+したがって、フェーズは以下に位置する。
 
-## 3. タスク一覧
-
-### Task T01
-
-**Task Name**  
-config loader の実装
-
-**Purpose**  
-`config/config.json` を読み込み、内部で利用可能な設定辞書を返す処理を追加する。
-
-**Target Files**
-
-- `src/config_loader.py`
-    
-
-**Do Not Touch**
-
-- `app.py`
-    
-- `src/fetchers/`
-    
-- `src/normalizer.py`
-    
-- `src/classifier.py`
-    
-- `src/markdown_writer.py`
-    
-- `src/output_handler.py`
-    
-
-**Done Criteria**
-
-- `config.json` を読み込める
-    
-- ファイル不存在時に安全な例外または明確なエラーになる
-    
-- JSON形式不正時に安全に停止できる
-    
-
-**Check Method**
-
-- 正常な `config.json` で読込確認
-    
-- 不存在ファイルで異常系確認
-    
-- 不正JSONで異常系確認
-    
-
-**Priority**  
-High
-
-**Depends On**  
-なし
-
-**Risk**  
-Low
-
-**Requires Human Review**  
-Yes
-
-**Status**  
-Todo
+**フェーズ：MVP完成 → 拡張フェーズ入口**
 
 ---
 
-### Task T02
+## 3. 完了済みタスク（Done）
 
-**Task Name**  
-最小 fetcher の実装
+以下はすでに実装・確認が完了しているタスクである。
 
-**Purpose**  
-公開情報源1種から最小限の情報を取得する処理を追加する。初回版では1種類に限定する。
+### T01 設定読込
 
-**Target Files**
-
-- `src/fetchers/<source_fetcher>.py`
-    
-
-**Do Not Touch**
-
-- `src/config_loader.py`
-    
-- `src/normalizer.py`
-    
-- `src/classifier.py`
-    
-- `src/markdown_writer.py`
-    
-- `src/output_handler.py`
-    
-- `app.py`
-    
-
-**Done Criteria**
-
-- 指定情報源からデータを取得できる
-    
-- 取得失敗時に安全に失敗する
-    
-- 生データを返せる
-    
-
-**Check Method**
-
-- 正常取得確認
-    
-- 接続失敗または取得失敗の異常系確認
-    
-
-**Priority**  
-High
-
-**Depends On**  
-T01
-
-**Risk**  
-Medium
-
-**Requires Human Review**  
-Yes
-
-**Status**  
-Todo
+・`config_loader.py` 実装済み  
+・JSON読込が可能
 
 ---
 
-### Task T03
+### T02 RSS取得
 
-**Task Name**  
-normalizer の実装
-
-**Purpose**  
-fetcher が返した生データを共通内部形式へ変換する。
-
-**Target Files**
-
-- `src/normalizer.py`
-    
-
-**Do Not Touch**
-
-- `src/config_loader.py`
-    
-- `src/fetchers/`
-    
-- `src/classifier.py`
-    
-- `src/markdown_writer.py`
-    
-- `src/output_handler.py`
-    
-- `app.py`
-    
-
-**Done Criteria**
-
-- 共通形式の最低項目（source, title, url, published_at など）へ整形できる
-    
-- 欠損値がある場合の扱いが定義される
-    
-- 副作用を持たない
-    
-
-**Check Method**
-
-- 正常データ入力で整形確認
-    
-- 欠損データ入力で異常系または補正確認
-    
-
-**Priority**  
-High
-
-**Depends On**  
-T02
-
-**Risk**  
-Low
-
-**Requires Human Review**  
-Yes
-
-**Status**  
-Todo
+・`rss_fetcher.py` 実装済み  
+・feedparserによる取得が可能  
+・エラーハンドリングあり
 
 ---
 
-### Task T04
+### T03 正規化
 
-**Task Name**  
-classifier の実装
-
-**Purpose**  
-正規化データを監視型結果と探索型結果に分類する。
-
-**Target Files**
-
-- `src/classifier.py`
-    
-
-**Do Not Touch**
-
-- `src/config_loader.py`
-    
-- `src/fetchers/`
-    
-- `src/normalizer.py`
-    
-- `src/markdown_writer.py`
-    
-- `src/output_handler.py`
-    
-- `app.py`
-    
-
-**Done Criteria**
-
-- 監視キーワード一致を判定できる
-    
-- 探索型候補として扱うデータを分離できる
-    
-- 副作用を持たない
-    
-
-**Check Method**
-
-- 一致キーワードありのケース確認
-    
-- 一致キーワードなしのケース確認
-    
-- 空データ入力確認
-    
-
-**Priority**  
-High
-
-**Depends On**  
-T01, T03
-
-**Risk**  
-Medium
-
-**Requires Human Review**  
-Yes
-
-**Status**  
-Todo
+・`rss_normalizer.py` 実装済み  
+・キー統一、欠損吸収  
+・summaryのHTMLタグ除去  
+・HTMLエンティティ復元
 
 ---
 
-### Task T05
+### T04 キーワード判定
 
-**Task Name**  
-monitoring 用 Markdown 生成の実装
-
-**Purpose**  
-監視型結果を Markdown 文字列へ変換する処理を追加する。
-
-**Target Files**
-
-- `src/markdown_writer.py`
-    
-
-**Do Not Touch**
-
-- `src/config_loader.py`
-    
-- `src/fetchers/`
-    
-- `src/normalizer.py`
-    
-- `src/classifier.py`
-    
-- `src/output_handler.py`
-    
-- `app.py`
-    
-
-**Done Criteria**
-
-- 監視型結果一覧から Markdown を生成できる
-    
-- タイトル、URL、日時などの最低項目を含む
-    
-- 保存処理を持たない
-    
-
-**Check Method**
-
-- 正常データで Markdown 生成確認
-    
-- 空データでの出力確認
-    
-
-**Priority**  
-High
-
-**Depends On**  
-T04
-
-**Risk**  
-Low
-
-**Requires Human Review**  
-Yes
-
-**Status**  
-Todo
+・`keyword_classifier.py` 実装済み  
+・title / summary に対する部分一致  
+・matched / matched_keywords 付与
 
 ---
 
-### Task T06
+### T05 Markdown生成
 
-**Task Name**  
-exploration 用 Markdown 生成の実装
-
-**Purpose**  
-探索型結果を Markdown 文字列へ変換する処理を追加する。
-
-**Target Files**
-
-- `src/markdown_writer.py`
-    
-
-**Do Not Touch**
-
-- `src/config_loader.py`
-    
-- `src/fetchers/`
-    
-- `src/normalizer.py`
-    
-- `src/classifier.py`
-    
-- `src/output_handler.py`
-    
-- `app.py`
-    
-
-**Done Criteria**
-
-- 探索型結果一覧から Markdown を生成できる
-    
-- 話題候補または関連項目が構造化されている
-    
-- 保存処理を持たない
-    
-
-**Check Method**
-
-- 正常データで Markdown 生成確認
-    
-- 空データでの出力確認
-    
-
-**Priority**  
-Medium
-
-**Depends On**  
-T04
-
-**Risk**  
-Low
-
-**Requires Human Review**  
-Yes
-
-**Status**  
-Todo
+・`markdown_writer.py` 実装済み  
+・構造化Markdown出力
 
 ---
 
-### Task T07
+### T06 パイプライン接続
 
-**Task Name**  
-output handler の実装
-
-**Purpose**  
-生成された Markdown を指定ディレクトリへ保存する処理を追加する。
-
-**Target Files**
-
-- `src/output_handler.py`
-    
-
-**Do Not Touch**
-
-- `src/config_loader.py`
-    
-- `src/fetchers/`
-    
-- `src/normalizer.py`
-    
-- `src/classifier.py`
-    
-- `src/markdown_writer.py`
-    
-- `app.py`
-    
-
-**Done Criteria**
-
-- 保存先ディレクトリを扱える
-    
-- monitoring / exploration に分けて保存できる
-    
-- 保存失敗時に安全に停止できる
-    
-
-**Check Method**
-
-- 正常保存確認
-    
-- 不正パスや書込失敗時の異常系確認
-    
-
-**Priority**  
-High
-
-**Depends On**  
-T05, T06
-
-**Risk**  
-Medium
-
-**Requires Human Review**  
-Yes
-
-**Status**  
-Todo
+・`rss_pipeline.py` 実装済み  
+・各モジュールの接続と実行順制御
 
 ---
 
-### Task T08
+### T07 CLI実装
 
-**Task Name**  
-logger の最小実装
-
-**Purpose**  
-実行開始、主要処理、エラー時の最小ログ出力を追加する。
-
-**Target Files**
-
-- `src/logger.py`
-    
-
-**Do Not Touch**
-
-- `src/config_loader.py`
-    
-- `src/fetchers/`
-    
-- `src/normalizer.py`
-    
-- `src/classifier.py`
-    
-- `src/markdown_writer.py`
-    
-- `src/output_handler.py`
-    
-- `app.py`
-    
-
-**Done Criteria**
-
-- INFO / ERROR の最小出力ができる
-    
-- 機密情報を出力しない
-    
-- ログファイルまたは標準出力の方針が明確である
-    
-
-**Check Method**
-
-- 正常時ログ確認
-    
-- 異常時ログ確認
-    
-- 機密情報非出力確認
-    
-
-**Priority**  
-Medium
-
-**Depends On**  
-なし
-
-**Risk**  
-Low
-
-**Requires Human Review**  
-Yes
-
-**Status**  
-Todo
+・`app.py` 実装済み  
+・引数処理  
+・標準出力表示  
+・例外処理
 
 ---
 
-### Task T09
+### T08 動作確認（E2E）
 
-**Task Name**  
-app.py への最小接続
-
-**Purpose**  
-設定読込→取得→整形→分類→Markdown生成→保存の最小フローを `app.py` から実行できるようにする。
-
-**Target Files**
-
-- `app.py`
-    
-
-**Do Not Touch**
-
-- 各モジュールの責務を変更しない
-    
-- 新規依存を追加しない
-    
-
-**Done Criteria**
-
-- `app.py` 実行でMVPフローが一通り動く
-    
-- 主要例外を入口で整形して表示できる
-    
-- 各責務が `app.py` に混入していない
-    
-
-**Check Method**
-
-- 正常実行確認
-    
-- 設定不備時の異常系確認
-    
-- 出力生成確認
-    
-
-**Priority**  
-High
-
-**Depends On**  
-T01, T02, T03, T04, T05, T06, T07
-
-**Risk**  
-Medium
-
-**Requires Human Review**  
-Yes
-
-**Status**  
-Todo
+・CLIから実行成功  
+・Markdown出力確認  
+・HTML除去確認
 
 ---
 
-## 4. 実装順序
+## 4. 次に実装するタスク（Next）
 
-初回版では以下の順で進める。
-
-1. T01 config loader
-    
-2. T02 最小 fetcher
-    
-3. T03 normalizer
-    
-4. T04 classifier
-    
-5. T05 monitoring Markdown
-    
-6. T06 exploration Markdown
-    
-7. T07 output handler
-    
-8. T08 logger
-    
-9. T09 app.py 接続
-    
+現在の構成を崩さず、自然に拡張できるタスクを優先する。
 
 ---
 
-## 5. AI実装ルール
+### T09 Markdown保存機能
 
-- 1依頼 = 1タスク
-    
-- Proposal Mode → Apply Mode の2段階で進める
-    
-- 改善提案はその場で実装せず別タスク化する
-    
-- 依存追加は承認制
-    
-- 指定外ファイル変更は禁止
-    
-- 実装後は安全レビューSkillとテスト観点整理Skillを適用する
-    
+目的  
+・現在は標準出力のみのため、ファイルとして保存できるようにする
 
----
+内容  
+・writerは変更しない（文字列生成のみ）  
+・pipelineまたは別モジュールで保存処理を追加  
+・保存先は引数または設定で指定
 
-## 6. 状態管理ルール
-
-使用する Status は以下とする。
-
-- Todo
-    
-- Ready
-    
-- In Progress
-    
-- Review
-    
-- Done
-    
-- Blocked
-    
-
-初回版では全タスクを Todo で開始し、依存が満たされたものから Ready に更新する。
+完了条件  
+・Markdownがファイルとして保存される  
+・CLI実行時に保存が確認できる  
+・既存出力仕様を壊さない
 
 ---
 
-## 7. 状態
+### T10 複数RSS対応
 
-初回版（v0.1）  
-MVP実装用の最小タスク計画として固定
+目的  
+・複数ソースから記事を取得できるようにする
+
+内容  
+・configで複数RSSを扱う  
+・pipelineでループ処理追加  
+・結果を1つのリストに統合
+
+完了条件  
+・複数RSSが処理される  
+・出力が統合される
+
+---
+
+## 5. 保留タスク（Backlog）
+
+優先度は低いが将来検討するタスク。
+
+---
+
+### B01 スコアリング
+
+・記事の重要度評価  
+・ランキング機能
+
+---
+
+### B02 重複排除
+
+・URLベースの重複検知
+
+---
+
+### B03 ログ機構
+
+・処理ログ出力  
+・エラー追跡
+
+---
+
+### B04 GUI
+
+・CLI以外の操作インターフェース
+
+---
+
+## 6. タスク実行ルール
+
+本プロジェクトでは以下のルールで開発を行う。
+
+・1タスク＝1責務  
+・変更範囲を限定する  
+・既存責務を壊さない  
+・E2Eで必ず確認する
+
+---
+
+## 7. 開発フロー（実運用）
+
+現在の実運用フローは以下である。
+
+1. タスク選定
+    
+2. 変更範囲を明確化
+    
+3. CODEXに実装指示
+    
+4. CODEX内で改善ループ
+    
+5. 人間が最終確認
+    
+6. 動作確認
+    
+7. 採用判断
+    
+
+このフローにより、負担を抑えつつ安全性を確保する。
+
+---
+
+## 8. 現在の到達点
+
+本プロジェクトは以下の状態にある。
+
+・最小パイプライン完成  
+・責務分離構造確立  
+・CLI動作確認済み  
+・1回の改善サイクル実施済み
+
+---
+
