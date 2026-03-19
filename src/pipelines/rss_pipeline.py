@@ -45,6 +45,11 @@ def run_rss_pipeline_outputs(config_path: str = "config/config.json") -> tuple[s
 
     classified_entries = _deduplicate_entries(classified_entries)
     monitoring_entries = [entry for entry in classified_entries if entry.get("matched")]
+    monitoring_entries = sorted(
+        monitoring_entries,
+        key=lambda entry: entry.get("score", 0),
+        reverse=True,
+    )
 
     exploration_markdown = build_markdown(classified_entries)
     monitoring_markdown = build_markdown(monitoring_entries)

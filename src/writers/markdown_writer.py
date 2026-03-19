@@ -16,6 +16,7 @@ def build_markdown(entries: list[dict]) -> str:
         matched = "Yes" if entry.get("matched", False) else "No"
         matched_keywords = entry.get("matched_keywords", [])
         matched_keywords_text = ", ".join(matched_keywords) if matched_keywords else "None"
+        score = entry.get("score", 0)
 
         markdown_parts.append(
             "\n".join(
@@ -25,6 +26,7 @@ def build_markdown(entries: list[dict]) -> str:
                     f"- Source: {source}",
                     f"- Published: {published_at}",
                     f"- Matched: {matched}",
+                    f"- Score: {score}",
                     f"- Matched Keywords: {matched_keywords_text}",
                     "### Summary",
                     summary,

@@ -1,3 +1,6 @@
+STRONG_KEYWORDS = {"openai", "claude", "claude code", "codex", "chatgpt"}
+
+
 def classify_entries(entries: list[dict], keywords: list[str]) -> list[dict]:
     if not isinstance(entries, list):
         raise TypeError("entries must be a list.")
@@ -18,11 +21,24 @@ def classify_entries(entries: list[dict], keywords: list[str]) -> list[dict]:
     for entry in entries:
         title = entry.get("title", "")
         summary = entry.get("summary", "")
-        target_text = f"{title} {summary}".lower()
+        title_lower = title.lower()
+        summary_lower = summary.lower()
+        matched_keywords = []
+        score = 0
 
-        matched_keywords = [
-            keyword for keyword in keywords if keyword.lower() in target_text
-        ]
+        for keyword in keywords:
+            keyword_lower = keyword.lower()
+            in_title = keyword_lower in title_lower
+            in_summary = keyword_lower in summary_lower
+
+            if not in_title and not in_summary:
+                continue
+
+            matched_keywords.append(keyword)
+            score += 2 if in_title else 1
+
+            if keyword_lower in STRONG_KEYWORDS:
+                score += 2
 
         classified_entries.append(
             {
@@ -34,6 +50,7 @@ def classify_entries(entries: list[dict], keywords: list[str]) -> list[dict]:
                 "summary": summary,
                 "matched": len(matched_keywords) > 0,
                 "matched_keywords": matched_keywords,
+                "score": score,
             }
         )
 
