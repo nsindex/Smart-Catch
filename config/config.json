@@ -1,0 +1,53 @@
+{
+  "app": {
+    "name": "Smart-Catch",
+    "version": "0.1",
+    "mode": "local"
+  },
+
+  "sources": {
+    "rss": [
+      {
+        "name": "Tech News Sample",
+        "url": "https://example.com/rss",
+        "max_items": 20
+      }
+    ],
+    "web": [],
+    "api": []
+  },
+
+  "monitoring": {
+    "enabled": true,
+    "keywords": [
+      "AI",
+      "Claude Code",
+      "OpenAI",
+      "LLM",
+      "自動化"
+    ],
+    "match_mode": "partial"
+  },
+
+  "exploration": {
+    "enabled": true,
+    "max_items": 20
+  },
+
+  "output": {
+    "base_dir": "output",
+    "monitoring_dir": "output/monitoring",
+    "exploration_dir": "output/exploration",
+    "format": "markdown"
+  },
+
+  "logging": {
+    "level": "INFO",
+    "save_to_file": true,
+    "log_dir": "logs"
+  },
+
+  "network": {
+    "timeout_seconds": 10
+  }
+}
