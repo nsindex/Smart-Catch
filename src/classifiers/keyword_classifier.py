@@ -1,12 +1,16 @@
-STRONG_KEYWORDS = {"openai", "claude", "claude code", "codex", "chatgpt"}
-
-
-def classify_entries(entries: list[dict], keywords: list[str]) -> list[dict]:
+def classify_entries(
+    entries: list[dict], keywords: list[str], keyword_weights: dict | None = None
+) -> list[dict]:
     if not isinstance(entries, list):
         raise TypeError("entries must be a list.")
 
     if not isinstance(keywords, list):
         raise TypeError("keywords must be a list.")
+
+    if keyword_weights is None:
+        keyword_weights = {}
+    elif not isinstance(keyword_weights, dict):
+        raise TypeError("keyword_weights must be a dict.")
 
     for entry in entries:
         if not isinstance(entry, dict):
@@ -15,6 +19,12 @@ def classify_entries(entries: list[dict], keywords: list[str]) -> list[dict]:
     for keyword in keywords:
         if not isinstance(keyword, str):
             raise TypeError("Each keyword must be a string.")
+
+    for keyword, weight in keyword_weights.items():
+        if not isinstance(keyword, str):
+            raise TypeError("Each keyword weight key must be a string.")
+        if not isinstance(weight, int) or weight < 1:
+            raise TypeError("Each keyword weight must be a positive integer.")
 
     classified_entries = []
 
@@ -30,15 +40,17 @@ def classify_entries(entries: list[dict], keywords: list[str]) -> list[dict]:
             keyword_lower = keyword.lower()
             in_title = keyword_lower in title_lower
             in_summary = keyword_lower in summary_lower
+            keyword_weight = keyword_weights.get(keyword, 1)
 
             if not in_title and not in_summary:
                 continue
 
             matched_keywords.append(keyword)
-            score += 2 if in_title else 1
 
-            if keyword_lower in STRONG_KEYWORDS:
-                score += 2
+            if in_title:
+                score += keyword_weight * 2
+            if in_summary:
+                score += keyword_weight
 
         classified_entries.append(
             {

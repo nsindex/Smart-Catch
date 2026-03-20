@@ -1,9 +1,9 @@
+# ARCHITECTURE.md
 
 ## 1. 目的
 
-本ドキュメントは、Smart-Catch の現在のMVP実装における構成と責務分離を明確化することを目的とする。ここで扱うのは「将来理想形」ではなく、**現時点で実装済みの構造**である。
-
-本バージョンでは、公開RSSフィードを入力とし、記事取得、正規化、キーワード判定、Markdown生成、CLI出力までを単一パイプラインで処理する。
+本ドキュメントは、Smart-Catch の現在の実装構造と責務分離を明確化することを目的とする。
+ここで扱うのは将来理想形ではなく、現時点で実装済みの構造である。
 
 ---
 
@@ -12,14 +12,17 @@
 現在のシステムは、以下の責務単位モジュールで構成される。
 
 ・設定読込層  
+・ログ初期化層  
 ・取得層  
+・補助要約生成層  
 ・正規化層  
-・判定層  
+・判定・スコア算出層  
+・重複排除層  
+・分離層  
 ・出力生成層  
+・保存層  
 ・実行制御層  
-・CLI入口層
-
-各層は単一責務に限定し、処理の中身を相互に混在させない。
+・CLI入口層  
 
 ---
 
@@ -32,230 +35,171 @@ Smart-Catch/
 │   └── config.json
 ├── src/
 │   ├── config_loader.py
+│   ├── logging_config.py
 │   ├── fetchers/
 │   │   └── rss_fetcher.py
 │   ├── normalizers/
 │   │   └── rss_normalizer.py
+│   ├── summarizers/
+│   │   └── summary_generator.py
+│   ├── deduplicators/
+│   │   └── article_deduplicator.py
 │   ├── classifiers/
 │   │   └── keyword_classifier.py
 │   ├── writers/
-│   │   └── markdown_writer.py
+│   │   ├── markdown_writer.py
+│   │   └── file_writer.py
 │   └── pipelines/
 │       └── rss_pipeline.py
-├── requirements.txt
 ├── TASK_PLAN.md
 ├── ARCHITECTURE.md
 └── PROJECT_CONTEXT.md
 ```
 
----
-
 ## 4. モジュール責務
 
-### 4.1 `config_loader.py`
+### 4.1 config_loader.py
 
-責務は設定ファイルの読込のみである。  
-`config/config.json` を読み込み、辞書として返す。
+責務は設定ファイルの読込のみである。
 
-この層では取得、正規化、判定、出力は行わない。
+### 4.2 logging_config.py
 
----
+責務は logging 設定に従ったログ初期化のみである。
+現在は以下を扱う。
 
-### 4.2 `fetchers/rss_fetcher.py`
+・コンソールハンドラ設定  
+・必要に応じたファイルハンドラ設定  
+・ログレベル設定  
+・最小フォーマット設定  
 
-責務はRSSの取得と浅い記事情報抽出のみである。  
-`feedparser` を用いてRSSフィードを取得し、記事一覧を辞書リストで返す。
+### 4.3 fetchers/rss_fetcher.py
 
-この層ではHTML除去、分類、Markdown生成、保存は行わない。
+責務はRSSの取得と浅い記事情報抽出のみである。
 
----
+### 4.4 summarizers/summary_generator.py
 
-### 4.3 `normalizers/rss_normalizer.py`
+責務は summary が空の記事に対する補助要約生成のみである。
+既存 summary は変更しない。
+失敗時は元記事をそのまま返す。
 
-責務は取得済み記事データの正規化のみである。  
-fetcher の返り値を受け取り、後続処理が使いやすい安定キーへ変換する。
+### 4.5 normalizers/rss_normalizer.py
 
-現在の正規化内容は以下を含む。
+責務は取得済み記事データの正規化のみである。
+現在は以下を含む。
 
 ・キー名の統一  
-・欠損値の既定値吸収  
-・`summary` のHTMLタグ除去  
-・HTMLエンティティの復元
+・欠損値の吸収  
+・summary のHTMLタグ除去  
+・HTMLエンティティ復元  
 
-この層では取得、判定、Markdown生成、保存は行わない。
+### 4.6 classifiers/keyword_classifier.py
 
----
+責務はキーワード一致判定と score 算出のみである。
+現在は以下を付与する。
 
-### 4.4 `classifiers/keyword_classifier.py`
+・matched  
+・matched_keywords  
+・score  
 
-責務はキーワード一致判定のみである。  
-正規化済み記事とキーワード一覧を受け取り、各記事に判定結果を付与する。
+score は以下の最小ルールで算出する。
 
-現在の判定方式は以下である。
+・title 一致: keyword_weight × 2  
+・summary 一致: keyword_weight × 1  
+・同一 keyword が title / summary の両方に一致した場合は両方加点  
+・weight 未設定 keyword は 1  
 
-・`title` と `summary` を対象にする  
-・大文字小文字を吸収した部分一致  
-・一致有無を `matched` に格納  
-・一致語一覧を `matched_keywords` に格納
+### 4.7 deduplicators/article_deduplicator.py
 
-この層では取得、整形、Markdown生成、保存は行わない。
+責務は機械的に判定できる記事重複の除去のみである。
+現在は以下を扱う。
 
----
+・URL 完全一致  
+・正規化タイトル一致  
+・残存優先順位: score → summary 長 → 先着  
 
-### 4.5 `writers/markdown_writer.py`
+### 4.8 writers/markdown_writer.py
 
-責務はMarkdown文字列生成のみである。  
-判定済み記事リストを受け取り、単一のMarkdown文字列を返す。
+責務はMarkdown文字列生成のみである。
+保存処理は行わない。
 
-現在の出力構造は以下である。
+### 4.9 writers/file_writer.py
 
-・文書タイトル  
-・記事ごとの見出し  
-・URL / Source / Published  
-・Matched / Matched Keywords  
-・Summary
+責務はMarkdown文字列の保存のみである。
 
-この層では取得、判定、保存は行わない。
+### 4.10 pipelines/rss_pipeline.py
 
----
+責務は既存モジュールの接続と実行順制御のみである。
+現在の主な流れは以下である。
 
-### 4.6 `pipelines/rss_pipeline.py`
-
-責務は既存モジュールの接続と実行順制御のみである。  
-設定読込からMarkdown生成までを順に呼び出し、最終結果のMarkdown文字列を返す。
-
-現在の処理順は以下である。
-
-1. 設定読込
-    
-2. RSS設定取得
-    
-3. 先頭1件のRSSを使用
-    
-4. RSS取得
-    
-5. 正規化
-    
-6. キーワード判定
-    
-7. Markdown生成
-    
-8. Markdown文字列返却
-    
-
-この層では取得ロジック詳細、正規化ロジック詳細、判定ロジック詳細、Markdown整形詳細は持たない。
-
----
-
-### 4.7 `app.py`
-
-責務はCLI入口のみである。  
-コマンドライン引数から設定ファイルパスを決定し、pipeline を呼び出し、結果を標準出力へ表示する。
-
-現在のCLI仕様は以下である。
-
-・引数なしなら `config/config.json` を使用  
-・引数1個ならそのパスを使用  
-・引数2個以上なら usage エラー  
-・例外時は標準エラーへメッセージ出力  
-・正常終了コードは 0  
-・異常終了コードは 1
-
-この層では取得、正規化、判定、Markdown生成、保存は行わない。
-
----
+・設定読込  
+・複数RSS取得  
+・正規化  
+・必要に応じた補助要約生成  
+・判定 / score 算出  
+・必要に応じた重複排除  
+・Exploration / Monitoring 分離  
+・Markdown生成  
+・保存  
+・処理ログ出力  
+・Exploration Markdown を戻り値として返す  
 
 ## 5. データフロー
 
-現在のデータの流れは以下のようになる。
+現在のパイプラインは概ね以下の流れである。
 
-```text
-config/config.json
-   ↓
-config_loader
-   ↓
-rss_fetcher
-   ↓
-rss_normalizer
-   ↓
-keyword_classifier
-   ↓
-markdown_writer
-   ↓
-app.py 標準出力
-```
+load_config → setup_logging → fetch → normalize → summarize(optional) → classify/score → deduplicate(optional) → split → markdown → save
 
-このフローは一方向であり、各段階の責務は明確に分かれている。
+分離後の扱いは以下とする。
 
----
+・Exploration = 全記事  
+・Monitoring = matched == True  の記事  
 
-## 6. 現在の入力と出力
+## 6. 出力仕様
 
-### 入力
+### Exploration
 
-・設定ファイルパス  
-・RSS URL  
-・キーワード一覧  
-・最大取得件数（任意）
+・全記事  
+・CLI標準出力対象  
+・保存対象  
 
-### 出力
+### Monitoring
 
-・Markdown文字列  
-・CLIでは標準出力へ表示
+・一致記事のみ  
+・保存対象  
 
----
+### Logging
 
-## 7. 現在の設計上の制約
+・コンソール出力  
+・設定に応じたファイル出力  
+・ログフォーマット: 時刻 / レベル / モジュール名 / メッセージ  
 
-本バージョンには以下の制約がある。
-
-・単一RSSのみ処理する  
-・保存処理を持たない  
-・複数ソース統合をしない  
-・ログ出力機構を持たない  
-・GUIを持たない  
-・ランキングやスコアリングをしない  
-・重複排除をしない
-
-これらは未実装であり、現在のアーキテクチャ説明には含めない。
-
----
-
-## 8. 例外処理方針
+## 7. 例外処理方針
 
 現在の例外処理は最小構成である。
 
 ・各モジュールは自分の入力不正に対して最小限の例外を送出する  
+・summary_generator は記事単位の失敗を握りつぶし、元記事のまま継続する  
+・deduplicator は設定無効時に何もしない  
 ・pipeline は必要最低限の接続確認のみ行う  
-・CLI は例外を捕捉して `Error: ...` を標準エラーへ出す
+・pipeline は致命エラーをログに記録して再送出する  
+・CLI は例外を捕捉して標準エラーへ出す  
 
-回復処理、再試行、フォールバックは持たない。
+回復処理、再試行、複雑なフォールバックは持たない。
 
----
-
-## 9. 設計原則
-
-現在の設計は以下の原則に従う。
+## 8. 設計原則
 
 ・1モジュール1責務  
 ・変更範囲は最小  
 ・責務外処理を持ち込まない  
-・入力と出力を明示する  
-・将来拡張より現状整合を優先する
+・writerは文字列生成のみ  
+・保存処理は file_writer に限定する  
+・ログ初期化は logging_config に限定する  
+・pipelineは接続と順序制御に留める  
+・依存追加は明示承認時のみ許可する  
 
-今回の `summary` HTML除去も、この原則に従って `normalizer` に限定して実装されている。
+## 9. 将来拡張時の扱い
 
----
+今後の拡張は既存責務を壊さず、新しい責務として追加することを前提とする。
+候補は以下である。
 
-## 10. 将来拡張時の扱い
-
-今後、以下のような拡張が考えられる。
-
-・複数RSS対応  
-・保存機能追加  
-・重複排除  
-・スコアリング  
-・ログ出力  
-・GUI追加
-
-ただし、これらは現時点ではアーキテクチャに組み込まれていない。将来拡張時は、既存責務を壊さず、新しい責務として追加することを前提とする。
+・GUI追加  

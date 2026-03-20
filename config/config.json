@@ -10,7 +10,12 @@
       {
         "name": "Hugging Face Blog",
         "url": "https://huggingface.co/blog/feed.xml",
-        "max_items": 20
+        "max_items": 10
+      },
+      {
+        "name": "OpenAI Blog",
+        "url": "https://openai.com/blog/rss.xml",
+        "max_items": 10
       }
     ],
     "web": [],
@@ -19,30 +24,48 @@
 
   "monitoring": {
     "enabled": true,
-   "keywords": [
-  "AI",
-  "人工知能",
-  "生成AI",
-  "ChatGPT",
-  "OpenAI",
-  "Claude",
-  "Claude Code",
-  "Codex",
-  "LLM",
-  "大規模言語モデル",
-  "agent",
-  "agents",
-  "transformers",
-  "model",
-  "models",
-  "open source",
-  "local AI",
-  "機械学習",
-  "ディープラーニング",
-  "推論",
-  "自動化"
-],
+    "keywords": [
+      "AI",
+      "人工知能",
+      "生成AI",
+      "ChatGPT",
+      "OpenAI",
+      "Claude",
+      "Claude Code",
+      "Codex",
+      "LLM",
+      "大規模言語モデル",
+      "agent",
+      "agents",
+      "transformers",
+      "model",
+      "models",
+      "open source",
+      "local AI",
+      "機械学習",
+      "ディープラーニング",
+      "推論",
+      "自動化"
+    ],
+    "keyword_weights": {
+      "ChatGPT": 3,
+      "OpenAI": 3,
+      "Claude": 3,
+      "Claude Code": 4,
+      "Codex": 4,
+      "LLM": 2,
+      "生成AI": 2
+    },
     "match_mode": "partial"
+  },
+
+  "deduplication": {
+    "enabled": false,
+    "mode": "url_and_title"
+  },
+
+  "summary_generation": {
+    "enabled": true
   },
 
   "exploration": {
