@@ -2,9 +2,9 @@
 
 ## 1. プロジェクト概要
 
-Smart-Catch は、公開されている RSS 情報を取得し、キーワード判定を行ったうえで Markdown 文字列を生成・保存する Python 製のローカル CLI アプリです。
+Smart-Catch は、公開されている RSS 情報を取得し、キーワード判定を行ったうえで Markdown 文字列を生成・保存する Python 製のローカル CLI / ローカル GUI アプリです。
 
-現時点では MVP 段階であり、設定ファイルを入力として複数の RSS 情報源を順番に処理し、結果を標準出力へ表示しつつ Markdown ファイルとして保存する最小構成まで実装されています。
+現時点では MVP 段階であり、設定ファイルを入力として複数の RSS 情報源を順番に処理し、結果を標準出力へ表示しつつ Markdown ファイルとして保存する構成に加え、ローカル環境で実行できる GUI 入口まで実装されています。Web 化は未実装です。
 
 ## 2. 現在できること
 
@@ -19,14 +19,18 @@ Smart-Catch は、公開されている RSS 情報を取得し、キーワード
 - 判定結果を Markdown 文字列へ変換する
 - Markdown を `output/exploration/collected_articles.md` と `output/monitoring/monitored_articles.md` に UTF-8 で保存する
 - CLI から実行し、結果を標準出力へ表示する
+- ローカル GUI から config 指定で pipeline を実行する
+- GUI 上で進行状態と簡易結果を確認する
+- GUI から保存済み出力ファイルを開く
 
 ## 3. 現在まだできないこと
 
-- GUI / Web アプリとしての実行
+- Web アプリとしての実行
 - 高度な意味類似ベースの重複判定
 - 高度な分類、ランキング、重み調整
 - 自動テストの整備
 - 高度なログローテーションや外部監視連携
+- 非同期実行やバックグラウンドジョブ管理
 
 ## 4. システム構成
 
@@ -43,6 +47,7 @@ Smart-Catch は、公開されている RSS 情報を取得し、キーワード
 - `file_writer`: ファイル保存のみ
 - `pipeline`: 接続と実行順制御のみ
 - `app.py`: CLI 入口のみ
+- `gui_app.py`: ローカル GUI 入口のみ
 
 現在の処理フローは次のとおりです。
 
@@ -57,7 +62,7 @@ Smart-Catch は、公開されている RSS 情報を取得し、キーワード
 9. 必要に応じて重複排除を行う
 10. Exploration / Monitoring を分離する
 11. Markdown を保存する
-12. CLI から標準出力へ表示する
+12. CLI から標準出力、または GUI から状態と結果サマリを表示する
 13. 処理状況をログへ記録する
 
 ## 5. ディレクトリ構成
@@ -65,6 +70,7 @@ Smart-Catch は、公開されている RSS 情報を取得し、キーワード
 ```text
 Smart-Catch/
 ├── app.py
+├── gui_app.py
 ├── config/
 │   └── config.json
 ├── src/
@@ -120,19 +126,20 @@ pip install -r requirements.txt
 
 ## 7. 実行方法
 
-既定の設定ファイルを使う場合:
+CLI 実行:
 
 ```bash
 python app.py
-```
-
-設定ファイルパスを明示する場合:
-
-```bash
 python app.py config/config.json
 ```
 
-引数を 2 個以上渡した場合は usage エラーで終了します。
+GUI 実行:
+
+```bash
+python gui_app.py
+```
+
+GUI では config パス入力欄に `config/config.json` を指定し、`Run` ボタンで既存 pipeline を実行します。実行中は `Run` ボタンが無効化されます。
 
 ## 8. `config.json` の役割と例
 
@@ -212,12 +219,13 @@ python app.py config/config.json
 - `keyword_weights` 未設定の keyword は重み 1 です
 - `deduplication.enabled=false` のときは従来どおり動きます
 - `logging.save_to_file=false` のときはログファイルを保存しません
+- GUI でも同じ config を使います
 
 ## 9. 出力例の概要
 
-出力は Markdown 文字列として生成され、CLI 実行時には標準出力へ表示されます。あわせて Exploration / Monitoring の両方が保存されます。ログは標準エラー側に出ます。
+出力は Markdown 文字列として生成され、CLI 実行時には標準出力へ表示されます。あわせて Exploration / Monitoring の両方が保存されます。ログは標準エラーまたはログファイル側に出ます。GUI は全文 Markdown ではなく簡易結果を表示します。
 
-構造は次の形式です。
+CLI の Markdown 構造は次の形式です。
 
 ```markdown
 # Collected Articles
@@ -233,16 +241,20 @@ python app.py config/config.json
 記事要約
 ```
 
-ログ例:
+GUI の結果表示例:
 
 ```text
-2026-03-20 07:00:00,000 INFO src.pipelines.rss_pipeline Pipeline started
-2026-03-20 07:00:01,000 INFO src.pipelines.rss_pipeline RSS fetch completed: Hugging Face Blog (10 entries)
+[09:00:00] [INFO] Run started: config/config.json
+[09:00:01] [SUCCESS] Execution completed successfully.
+[09:00:01] [INFO] Exploration output: output/exploration/collected_articles.md
+[09:00:01] [INFO] Monitoring output: output/monitoring/monitored_articles.md
+[09:00:01] [INFO] Exploration article count: 12
 ```
 
 ## 10. 現在の制約
 
-- ローカル環境向けの CLI アプリです
+- ローカル環境向けの CLI / GUI アプリです
+- Web UI は未実装です
 - 入力は JSON 設定ファイルです
 - Exploration は `output/exploration/collected_articles.md` に保存します
 - Monitoring は `output/monitoring/monitored_articles.md` に保存します
@@ -252,17 +264,20 @@ python app.py config/config.json
 - score は最小ルールベースであり、学習的な最適化はしていません
 - 重複排除は URL 完全一致と正規化タイトル一致のみです
 - ログは標準ライブラリ logging の最小構成です
+- GUI は pipeline を呼ぶ入口のみで、処理本体は持ちません
+- GUI は同期実行のため、実行中は画面操作が一時的に止まります
 - 公開情報のみを前提としています
 
 ## 11. 今後の拡張候補
 
 現時点で未実装ですが、今後の候補としては以下が考えられます。
 
-- GUI / Web 化
+- Web UI 化
 - より高度な重複判定
 - `summary` の空白整形や本文品質の改善
 - 手動確認に加えた自動テスト整備
 - 高度なログローテーションや外部監視連携
+- GUI の非同期実行
 
 これらは README 執筆時点では実装されていません。
 
@@ -274,4 +289,5 @@ python app.py config/config.json
 - 現在は `summary` の HTML タグのみ除去し、内容の高度な整形までは行いません
 - `deduplication.mode=url_and_title` では正規化タイトル一致も重複とみなします
 - `logging.save_to_file=true` のときは `logs` ディレクトリ配下にログファイルを作成します
+- GUI から出力ファイルを開く機能は Windows の `os.startfile()` を前提としています
 - 取得対象は公開情報に限定してください
