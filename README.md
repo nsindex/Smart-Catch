@@ -440,3 +440,23 @@ Exploration Markdown では、先頭に Daily Report 節が表示されます。
 - Exploration: Daily Report の後に Topic Summaries、その後に # Collected Articles が続きます
 - Monitoring: 既存どおり記事一覧のみを表示します
 
+
+
+## Exploration Markdown の行動提案
+
+Exploration Markdown では、Daily Report の後に Action Suggestions 節が表示されます。
+ここでは優先トピック、注目記事、推奨行動を確認できます。
+
+- Exploration: Daily Report の後に Action Suggestions、その後に Topic Summaries と # Collected Articles が続きます
+- Monitoring: 既存どおり記事一覧のみを表示します
+
+
+
+## Markdown の履歴保存
+
+`output.save_history` を `true` にすると、最新ファイルに加えて日付付き履歴ファイルも保存します。
+未指定または `false` の場合は、既存運用を壊さないよう最新ファイルのみを保存します。
+
+- Exploration: `collected_articles.md` と `collected_articles_YYYY-MM-DD.md`
+- Monitoring: `monitored_articles.md` と `monitored_articles_YYYY-MM-DD.md`
+- 同日再実行時は同じ履歴ファイル名を上書きします

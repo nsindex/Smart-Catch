@@ -69,6 +69,7 @@ def validate_config(config: dict) -> None:
             raise ValueError("output must be an object")
         _validate_optional_str(output, "exploration_dir")
         _validate_optional_str(output, "monitoring_dir")
+        _validate_optional_bool(output, "save_history")
 
     logging_config = config.get("logging")
     if logging_config is not None:

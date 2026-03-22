@@ -1,5 +1,6 @@
 import logging
 
+from src.action_generators.action_generator import build_action_suggestions
 from src.classifiers.keyword_classifier import classify_entries
 from src.config_loader import load_config
 from src.deduplicators.article_deduplicator import deduplicate_articles
@@ -9,7 +10,7 @@ from src.report_generators.daily_report_generator import build_daily_report
 from src.summarizers.summary_generator import generate_missing_summaries
 from src.topic_extractors.topic_extractor import assign_topics
 from src.topic_summarizers.topic_summarizer import summarize_topics
-from src.writers.file_writer import save_markdown_file
+from src.writers.file_writer import save_markdown_file, save_markdown_history_file
 from src.writers.markdown_writer import build_markdown
 
 
@@ -31,6 +32,8 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
         deduplication_config = config.get("deduplication", {})
         deduplication_enabled = deduplication_config.get("enabled", False)
         deduplication_mode = deduplication_config.get("mode", "url_only")
+        output_config = config.get("output", {})
+        save_history = output_config.get("save_history", False)
         all_fetched_entries = []
 
         for rss_config in rss_configs:
@@ -113,6 +116,12 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
         daily_report = build_daily_report(classified_entries, topic_summaries)
         LOGGER.info("Daily report generation completed")
 
+        action_suggestions = build_action_suggestions(
+            classified_entries,
+            topic_summaries,
+        )
+        LOGGER.info("Action suggestions generation completed")
+
         exploration_articles = classified_entries
         monitoring_articles = [
             article for article in classified_entries if article.get("matched") is True
@@ -127,6 +136,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
             exploration_articles,
             topic_summaries=topic_summaries,
             daily_report=daily_report,
+            action_suggestions=action_suggestions,
         )
         monitoring_markdown = build_markdown(monitoring_articles)
         LOGGER.info("Markdown generation completed")
@@ -142,6 +152,21 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
         )
         LOGGER.info("Exploration markdown saved: %s", exploration_path)
         LOGGER.info("Monitoring markdown saved: %s", monitoring_path)
+
+        if save_history:
+            exploration_history_path = save_markdown_history_file(
+                exploration_markdown,
+                config["output"]["exploration_dir"],
+                "collected_articles.md",
+            )
+            monitoring_history_path = save_markdown_history_file(
+                monitoring_markdown,
+                config["output"]["monitoring_dir"],
+                "monitored_articles.md",
+            )
+            LOGGER.info("Exploration history markdown saved: %s", exploration_history_path)
+            LOGGER.info("Monitoring history markdown saved: %s", monitoring_history_path)
+
         LOGGER.info("Pipeline completed")
 
         return exploration_markdown

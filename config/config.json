@@ -77,7 +77,8 @@
     "base_dir": "output",
     "monitoring_dir": "output/monitoring",
     "exploration_dir": "output/exploration",
-    "format": "markdown"
+    "format": "markdown",
+    "save_history": true
   },
 
   "logging": {

@@ -3,11 +3,14 @@
 ## 1. プロジェクト概要
 
 本プロジェクトは、公開されている複数のRSSフィードから記事情報を取得し、
-キーワードベースで判定を行い、結果をMarkdown形式で出力・保存する
-ローカルCLI / ローカルGUIアプリケーションである。
+キーワードベースで判定・スコアリング・トピック分類を行い、
+最終的にMarkdown形式で整理・出力・保存するローカルアプリケーションである。
 
-処理はローカルで実行され、現在は外部APIやデータベースを使用しない。
-Web化は未実装である。
+処理は完全にローカルで実行され、外部API・データベースは使用しない。
+CLIおよびローカルGUIの両方から実行可能である。
+
+本システムは単なる情報収集ツールではなく、
+**情報の構造化・要約・意思決定支援まで行うパイプライン**として設計されている。
 
 ---
 
@@ -15,19 +18,35 @@ Web化は未実装である。
 
 現在の実装には以下が含まれる。
 
+### データ取得・前処理
 ・複数RSSフィードからの記事取得  
-・記事データの正規化（summaryのHTML除去を含む）  
-・summary 空記事に対する補助要約生成（configで有効/無効切替可能）  
+・記事データの正規化（HTML除去・エンティティ復元）  
+・summary 空記事への補助要約生成（configで切替可能）  
+
+### 判定・整理
 ・キーワードベースの一致判定  
-・keyword_weights を考慮した score 算出  
-・設定で有効/無効を切り替えられる重複排除  
+・keyword_weights によるスコアリング  
+・設定で切替可能な重複排除  
+
+### 構造化
+・記事ごとの `topic_id` 付与  
+・トピック単位での要約生成（topic summaries）  
+
+### 可視化・意思決定支援
+・日次レポート生成（Daily Report）  
+・行動提案生成（Action Suggestions）  
+
+### 出力
 ・Markdown文字列生成  
 ・CLI標準出力  
-・Markdownファイル保存  
 ・Exploration / Monitoring 分離出力  
-・config に従ったログ出力  
-・pipeline を再利用するローカルGUI入口  
-・GUI上での進行状態表示と出力ファイルオープン導線  
+・Markdownファイル保存  
+・履歴保存（configで切替可能）  
+
+### 実行環境
+・CLI実行（app.py）  
+・ローカルGUI実行（gui_app.py）  
+・Windowsタスクスケジューラ対応（自動実行）  
 
 ---
 
@@ -40,13 +59,14 @@ Web化は未実装である。
 ・RSSソース一覧  
 ・キーワード一覧  
 ・キーワード重み設定（任意）  
-・重複排除の有効/無効と mode  
-・要約生成有効/無効  
+・重複排除設定  
+・要約生成設定  
 ・出力先設定  
+・履歴保存設定（output.save_history）  
 ・ログ設定  
 
-CLI / GUI からは設定ファイルパスを指定可能であり、
-未指定の場合は既定値 `config/config.json` を使用する。
+CLI / GUI から設定ファイルパスを指定可能であり、
+未指定時は `config/config.json` を使用する。
 
 ---
 
@@ -54,25 +74,53 @@ CLI / GUI からは設定ファイルパスを指定可能であり、
 
 出力はMarkdown形式であり、以下の2系統を持つ。
 
-### Exploration
-・全記事を対象  
-・CLI標準出力の対象  
-・保存先: `output/exploration/collected_articles.md`
+### Exploration（全体分析）
 
-### Monitoring
-・`matched == True` の記事のみを対象  
-・保存先: `output/monitoring/monitored_articles.md`
+・全記事を対象  
+・CLI標準出力対象  
+・保存対象  
+
+構造：
+
+# Daily Report
+# Action Suggestions
+## Topic Summaries
+# Collected Articles
+
+保存先：
+- `output/exploration/collected_articles.md`
+
+履歴保存（有効時）：
+- `collected_articles_YYYY-MM-DD.md`
+
+---
+
+### Monitoring（重要記事）
+
+・`matched == True` の記事のみ対象  
+・保存対象  
+
+保存先：
+- `output/monitoring/monitored_articles.md`
+
+履歴保存（有効時）：
+- `monitored_articles_YYYY-MM-DD.md`
+
+---
 
 ### Logging
+
 ・コンソール出力  
 ・設定に応じたファイル出力  
 ・保存先: `logs/smart_catch.log`
 
+---
+
 ### GUI
+
 ・実行中 / 成功 / 失敗表示  
-・Exploration 保存先表示  
-・Monitoring 保存先表示  
-・時刻付きの追記型結果表示  
+・保存先表示  
+・時刻付き結果表示  
 ・出力ファイルオープン導線  
 
 ---
@@ -81,50 +129,55 @@ CLI / GUI からは設定ファイルパスを指定可能であり、
 
 現在の処理は以下のパイプラインで構成される。
 
-1. 設定ファイル読込
-2. ログ初期化
-3. 複数RSS取得
-4. 正規化
-5. 必要に応じて空summary記事へ補助要約生成
-6. キーワード判定と score 算出
-7. 必要に応じて重複排除
-8. Exploration / Monitoring 分離
-9. Markdown生成
-10. ファイル保存
-11. CLI出力またはGUI結果表示
-12. 処理ログ記録
-
-すべての処理は同期的に実行される。
+load_config
+→ setup_logging
+→ fetch
+→ normalize
+→ summarize(optional)
+→ classify / score
+→ deduplicate(optional)
+→ assign_topics
+→ summarize_topics
+→ build_daily_report
+→ build_action_suggestions
+→ split
+→ markdown生成
+→ 保存（最新 + 履歴）
+→ 出力 / GUI表示
+→ ログ記録
 
 ---
 
 ## 6. 設計方針
 
-本プロジェクトは責務分離を重視した構成を採用している。
+本プロジェクトは責務分離を最重要とする。
 
-・fetcher：データ取得のみ  
-・normalizer：データ整形のみ  
-・summarizer：補助要約生成のみ  
-・classifier：判定処理と score 算出のみ  
-・deduplicator：機械的な重複排除のみ  
-・writer：出力生成のみ  
+・fetcher：取得のみ  
+・normalizer：整形のみ  
+・summarizer：補助要約のみ  
+・classifier：判定とスコアのみ  
+・deduplicator：重複除去のみ  
+・topic_extractor：トピック付与のみ  
+・topic_summarizer：トピック要約のみ  
+・report_generator：日次レポート生成のみ  
+・action_generator：行動提案生成のみ  
+・writer：文字列生成のみ  
 ・file_writer：保存のみ  
-・logging_config：ログ初期化のみ  
-・pipeline：処理順制御と接続のみ  
-・CLI（app.py）：CLI入口のみ  
-・GUI（gui_app.py）：ローカルGUI入口のみ  
+・pipeline：接続と順序制御のみ  
+・CLI：入口のみ  
+・GUI：入口のみ  
 
 ---
 
 ## 7. 変更ポリシー
 
-変更は以下の原則に従う。
+変更は以下に従う。
 
-・1タスク＝1責務に限定する  
-・変更範囲は最小にする  
-・既存モジュールの責務を侵さない  
+・1タスク = 1責務  
+・変更範囲は最小  
+・既存責務を侵さない  
 ・出力仕様を破壊しない  
-・依存追加は明示承認時のみ許可する  
+・依存追加は原則禁止  
 
 ---
 
@@ -132,25 +185,41 @@ CLI / GUI からは設定ファイルパスを指定可能であり、
 
 本プロジェクトは以下の状態にある。
 
-・複数RSSから取得可能  
-・Markdown生成まで接続済み  
-・Exploration 保存可能  
-・Monitoring 保存可能  
-・Monitoring 0件でも動作継続可能  
-・summary 空記事に対して補助要約を試行可能  
-・keyword_weights による score 調整可能  
-・設定で切り替え可能な重複排除を追加済み  
-・設定に応じたコンソール / ファイルログ出力が可能  
-・CLI に加えてローカルGUI入口を利用可能  
-・GUI で進行状態と結果サマリを確認可能  
-
-つまり、最小実用レベルの情報収集パイプラインとして完成しており、
-現在は拡張フェーズにある。
+・複数RSS取得可能  
+・正規化 / 判定 / Markdown生成可能  
+・トピック分類可能  
+・トピック要約可能  
+・日次レポート生成可能  
+・行動提案生成可能  
+・Exploration / Monitoring 分離可能  
+・履歴保存可能  
+・CLI / GUI 両対応  
+・自動実行対応済み  
 
 ---
 
-## 9. 今後の拡張方向
+## 9. 最新更新（T29）
 
-今後の拡張候補は以下である。
+・topic 抽出ロジックを、共通語やキーワード一致で既存 topic に結合する方式から、決定的な `topic_key` で分割する方式へ変更した  
+・`matched_keywords` を主軸にし、存在する場合は代表語を topic_key として使う  
+・`matched_keywords` が無い記事は `source` を fallback に使い、さらに無い場合は `other` を使う  
+・背景として、従来は AI 関連記事で全記事が単一 topic に収束しやすい問題があった  
+・実行確認では Topic Count が 1 から 4 に改善した  
+・pipeline / topic_summarizer / 出力構造は維持されている  
+・現在は安定状態であり、精度改善フェーズは完了した  
 
-・Web UI 化  
+---
+
+## 10. 今後の拡張方向
+
+・週次レポート  
+・通知連携  
+・Web UI  
+・API化  
+
+---
+
+## 11. 現在のフェーズ
+
+👉 MVP + 自動化 + 意思決定支援 完成  
+👉 現在は安定運用フェーズ

@@ -25,7 +25,9 @@
 ・トピック抽出 / 要約基盤追加済み  
 ・Exploration でのトピック表示追加済み  
 ・日次レポート生成追加済み  
-・現在は拡張フェーズにある
+・行動提案追加済み  
+・トピック精度改善完了済み  
+・現在は安定運用フェーズにある
 
 ---
 
@@ -272,19 +274,21 @@ Status: DONE
 ・README に Windows タスク スケジューラ手順を同期済み
 
 ---
+
 ### T18 設定バリデーション
 Status: DONE
 
 目的  
-・config/config.json の不正を実行前に検出し、設定エラーとして明確に停止させる  
+・config/config.json の不正を実行前に検出し、設定エラーとして明確に停止させる
 
 完了状態  
 ・`src/config_loader.py` に validate_config を実装済み  
 ・JSON構造 / 必須キー / 型チェックを実装済み  
 ・異常系（A〜Dテスト）で正しくエラー検出できることを確認済み  
-・正常系で既存機能に影響がないことを確認済み  
+・正常系で既存機能に影響がないことを確認済み
 
 ---
+
 ### T19 トピック抽出（topic_id付与）
 Status: DONE
 
@@ -308,7 +312,7 @@ Status: DONE
 ・`src/topic_summarizers/topic_summarizer.py` を追加済み  
 ・`topic_id` / `article_count` / `top_keywords` / `summary` を生成可能  
 ・matched_keywords 優先の設計を維持  
-・title / summary 語抽出時に最小限の stopwords を除外済み
+・title / summary 語抽出時に最小限のノイズ除外を適用済み
 
 ---
 
@@ -325,6 +329,7 @@ Status: DONE
 ・Monitoring Markdown の既存形式を維持
 
 ---
+
 ### T22 日次レポート生成
 Status: DONE
 
@@ -340,25 +345,115 @@ Status: DONE
 
 ---
 
-## 6. タスク実行ルール
+### T23 行動提案
+Status: DONE
 
-・1タスク = 1機能単位で扱う  
-・CODEX は T単位で実装・確認・必要な資料更新まで行う  
-・人間は T完了時のみ確認と承認を行う  
-・途中の細かい手順分割は、原則として TASK_PLAN には書かない  
-・各タスクは必ず完了条件・確認方法・停止条件を持つ  
-・停止条件に触れた場合は自走せず停止して報告する
+目的  
+・日次レポートとトピック要約をもとに、次に取るべき行動候補を生成できるようにする
+
+完了状態  
+・`src/action_generators/action_generator.py` を追加済み  
+・`priority_topics` / `highlight_articles` / `recommended_actions` を生成可能  
+・Exploration Markdown に `# Action Suggestions` 節を追加可能  
+・その前に `# Daily Report`、その後に `## Topic Summaries` と `# Collected Articles` が続く  
+・Monitoring Markdown の既存形式を維持
 
 ---
 
-## 7. タスク終了時のルール
+### T24 自動化運用強化（履歴保存）
+Status: DONE
 
-・タスク完了時は `Status: DONE` に更新する  
-・次に実行すべきタスクが既に定義されている場合のみ、そのタスクを `NEXT` にする  
-・ `TASK_PLAN.md` に存在しない新規タスクの作成は禁止  
-・ `NEXT` タスクが存在しない場合は停止する  
-・タスク完了時は「全タスク完了」または「次タスク待ち」と明示して終了する  
-・次タスクは必ず人間の指示を待つ
+目的  
+・毎日の自動実行結果を、最新表示と履歴保存の両方で扱えるようにする
+・Smart-Catch を継続運用可能な自動システムへ進める
+
+完了状態  
+・`output.save_history` で履歴保存を切替可能  
+・未指定時の既定値は `false` で、既存どおり最新ファイルのみ保存  
+・Exploration / Monitoring の両方で日付付き履歴ファイルを保存可能  
+・`collected_articles_YYYY-MM-DD.md` / `monitored_articles_YYYY-MM-DD.md` を生成可能  
+・既存の Daily Report / Action Suggestions / Topic Summaries / Collected Articles を維持
+
+---
+
+## 4. 次タスク（NEXT）
+
+なし
+
+---
+
+## 5. 保留タスク（BACKLOG）
+
+なし
+
+---
+
+## 6. 予定タスク（TODO）
+
+なし
+
+---
+
+## 7. 完了タスク（DONE）
+
+### T25 精度改善（ノイズ除去）
+Status: DONE
+
+目的  
+・topic grouping の誤結合を減らし、top_keywords のノイズ語を減らす
+
+完了状態  
+・topic 判定用語に最小限のノイズ除去を追加済み  
+・topic summaries の top_keywords 抽出にも同等のノイズ除去を反映済み
+
+---
+
+### T26 強語除外
+Status: DONE
+
+目的  
+・強すぎる汎用共通語が topic 結合の決定打にならないようにする
+
+完了状態  
+・弱い topic 共通語を topic grouping 判定から除外済み  
+・top_keywords が汎用強語だけに偏りすぎないよう調整済み
+
+---
+
+### T27 条件強化
+Status: DONE
+
+目的  
+・共通語条件をさらに厳格化し、誤結合を抑える
+
+完了状態  
+・topic words の共通判定条件を 2 語以上から 3 語以上へ強化済み
+
+---
+
+### T28 keyword一致強化
+Status: DONE
+
+目的  
+・matched_keywords の一致条件を厳格化し、誤結合を抑える
+
+完了状態  
+・matched_keywords 共通条件を 1 語以上から 2 語以上へ強化済み
+
+---
+
+### T29 トピック分割方式への変更（結合型 → 分割型）
+Status: DONE
+
+目的  
+・topic が単一に収束する問題を解消し、安定した topic 分割を実現する
+
+完了状態  
+・topic grouping を結合型から分割型へ変更済み  
+・`matched_keywords` の代表語を主軸とした `topic_key` を採用済み  
+・`matched_keywords` が無い記事は `source`、さらに無い場合は `other` を使用  
+・`topic_id` 形式と既存出力仕様を維持  
+・Topic Count の複数化を確認済み
 
 ---
 
@@ -384,6 +479,6 @@ Status: DONE
 ・topic 単位の要約データを内部生成可能  
 ・Exploration Markdown 先頭で topic summaries を確認可能  
 ・Exploration Markdown 先頭で daily report を確認可能  
-
-
-
+・Exploration Markdown で action suggestions を確認可能  
+・最新ファイルに加えて日付付き履歴ファイルを保存可能  
+・topic が単一収束しない分割型ロジックへ移行済み

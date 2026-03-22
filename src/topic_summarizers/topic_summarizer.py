@@ -3,20 +3,28 @@ import re
 
 WORD_PATTERN = re.compile(r"\w+")
 MAX_TOP_KEYWORDS = 3
-STOPWORDS = {
-    "the",
-    "and",
-    "of",
-    "to",
-    "a",
-    "an",
-    "in",
-    "on",
-    "for",
-    "with",
-    "is",
-    "are",
-}
+NOISE_TOPIC_WORDS = {"news", "update", "latest", "new", "report"}
+WEAK_TOPIC_WORDS = {"ai", "agent", "openai"}
+
+
+def _normalize_topic_word(word: str) -> str:
+    return word.strip().lower()
+
+
+def _is_noise_topic_word(word: str) -> bool:
+    if not word:
+        return True
+
+    if len(word) == 1:
+        return True
+
+    if word.isdigit():
+        return True
+
+    if word in NOISE_TOPIC_WORDS:
+        return True
+
+    return False
 
 
 def _extract_keywords(article: dict) -> list[str]:
@@ -37,17 +45,22 @@ def _extract_keywords(article: dict) -> list[str]:
 def _extract_words(article: dict) -> list[str]:
     title = article.get("title", "")
     summary = article.get("summary", "")
-    combined_text = f"{title} {summary}".lower()
+    combined_text = f"{title} {summary}"
     return [
-        word
-        for word in WORD_PATTERN.findall(combined_text)
-        if word and word not in STOPWORDS
+        normalized_word
+        for normalized_word in (
+            _normalize_topic_word(word) for word in WORD_PATTERN.findall(combined_text)
+        )
+        if not _is_noise_topic_word(normalized_word)
     ]
 
 
 def _select_top_keywords(keyword_counts: dict[str, int], word_counts: dict[str, int]) -> list[str]:
     counts = keyword_counts if keyword_counts else word_counts
-    sorted_keywords = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    sorted_keywords = sorted(
+        counts.items(),
+        key=lambda item: (item[0] in WEAK_TOPIC_WORDS, -item[1], item[0]),
+    )
     return [keyword for keyword, _ in sorted_keywords[:MAX_TOP_KEYWORDS]]
 
 
