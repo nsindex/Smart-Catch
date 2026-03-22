@@ -24,6 +24,7 @@
 ・自動実行対応済み  
 ・トピック抽出 / 要約基盤追加済み  
 ・Exploration でのトピック表示追加済み  
+・日次レポート生成追加済み  
 ・現在は拡張フェーズにある
 
 ---
@@ -324,16 +325,18 @@ Status: DONE
 ・Monitoring Markdown の既存形式を維持
 
 ---
+### T22 日次レポート生成
+Status: DONE
 
-## 4. 次タスク（NEXT）
+目的  
+・収集・分類・トピック化・要約済みの情報から、その日読むべき日次レポートを生成できるようにする
 
-なし
-
----
-
-## 5. 保留タスク（BACKLOG）
-
-なし
+完了状態  
+・`src/report_generators/daily_report_generator.py` を追加済み  
+・`generated_at` / `topic_count` / `top_topics` / `highlight_articles` / `summary` を生成可能  
+・Exploration Markdown 先頭に `# Daily Report` 節を追加可能  
+・その後に既存の `## Topic Summaries` と `# Collected Articles` が続く  
+・Monitoring Markdown の既存形式を維持
 
 ---
 
@@ -380,5 +383,7 @@ Status: DONE
 ・記事ごとの topic_id 付与が可能  
 ・topic 単位の要約データを内部生成可能  
 ・Exploration Markdown 先頭で topic summaries を確認可能  
+・Exploration Markdown 先頭で daily report を確認可能  
+
 
 

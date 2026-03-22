@@ -5,6 +5,7 @@ from src.config_loader import load_config
 from src.deduplicators.article_deduplicator import deduplicate_articles
 from src.fetchers.rss_fetcher import fetch_rss_entries
 from src.normalizers.rss_normalizer import normalize_rss_entries
+from src.report_generators.daily_report_generator import build_daily_report
 from src.summarizers.summary_generator import generate_missing_summaries
 from src.topic_extractors.topic_extractor import assign_topics
 from src.topic_summarizers.topic_summarizer import summarize_topics
@@ -109,6 +110,9 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
             len(topic_summaries),
         )
 
+        daily_report = build_daily_report(classified_entries, topic_summaries)
+        LOGGER.info("Daily report generation completed")
+
         exploration_articles = classified_entries
         monitoring_articles = [
             article for article in classified_entries if article.get("matched") is True
@@ -122,6 +126,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
         exploration_markdown = build_markdown(
             exploration_articles,
             topic_summaries=topic_summaries,
+            daily_report=daily_report,
         )
         monitoring_markdown = build_markdown(monitoring_articles)
         LOGGER.info("Markdown generation completed")

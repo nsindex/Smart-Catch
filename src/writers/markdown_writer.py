@@ -1,3 +1,57 @@
+def build_daily_report_markdown(daily_report: dict) -> str:
+    if not isinstance(daily_report, dict):
+        raise ValueError("daily_report must be a dict.")
+
+    markdown_parts = [
+        "# Daily Report",
+        f"- Generated At: {daily_report.get('generated_at', '')}",
+        f"- Topic Count: {daily_report.get('topic_count', 0)}",
+        "## Top Topics",
+    ]
+
+    top_topics = daily_report.get("top_topics", [])
+    if top_topics:
+        for topic in top_topics:
+            if not isinstance(topic, dict):
+                raise ValueError("Each top topic must be a dict.")
+
+            top_keywords = topic.get("top_keywords", [])
+            top_keywords_text = ", ".join(top_keywords) if top_keywords else "None"
+            markdown_parts.append(
+                "\n".join(
+                    [
+                        f"### {topic.get('topic_id', '')}",
+                        f"- Article Count: {topic.get('article_count', 0)}",
+                        f"- Top Keywords: {top_keywords_text}",
+                    ]
+                )
+            )
+    else:
+        markdown_parts.append("- None")
+
+    markdown_parts.append("## Highlight Articles")
+    highlight_articles = daily_report.get("highlight_articles", [])
+    if highlight_articles:
+        for article in highlight_articles:
+            if not isinstance(article, dict):
+                raise ValueError("Each highlight article must be a dict.")
+
+            markdown_parts.append(
+                f"- [{article.get('topic_id', '')}] {article.get('title', '')} (Score: {article.get('score', 0)})"
+            )
+    else:
+        markdown_parts.append("- None")
+
+    markdown_parts.extend(
+        [
+            "## Summary",
+            daily_report.get("summary", "本日は注目トピックは確認されなかった。"),
+        ]
+    )
+
+    return "\n\n".join(markdown_parts)
+
+
 def build_topic_summaries_markdown(topic_summaries: list[dict]) -> str:
     if not isinstance(topic_summaries, list):
         raise ValueError("topic_summaries must be a list.")
@@ -32,11 +86,15 @@ def build_topic_summaries_markdown(topic_summaries: list[dict]) -> str:
 def build_markdown(
     entries: list[dict],
     topic_summaries: list[dict] | None = None,
+    daily_report: dict | None = None,
 ) -> str:
     if not isinstance(entries, list):
         raise ValueError("entries must be a list.")
 
     markdown_parts = []
+
+    if daily_report is not None:
+        markdown_parts.append(build_daily_report_markdown(daily_report))
 
     if topic_summaries is not None:
         topic_summaries_markdown = build_topic_summaries_markdown(topic_summaries)

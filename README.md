@@ -430,3 +430,13 @@ Exploration Markdown では、記事一覧の前に Topic Summaries 節が表示
 - Monitoring: 既存どおり記事一覧のみを表示します
 
 
+
+
+## Exploration Markdown の日次レポート
+
+Exploration Markdown では、先頭に Daily Report 節が表示されます。
+ここでは生成時刻、主要トピック、注目記事、全体サマリを確認できます。
+
+- Exploration: Daily Report の後に Topic Summaries、その後に # Collected Articles が続きます
+- Monitoring: 既存どおり記事一覧のみを表示します
+
