@@ -21,6 +21,9 @@
 ・重複排除追加済み  
 ・ログ機構追加済み  
 ・ローカルGUI改善済み  
+・自動実行対応済み  
+・トピック抽出 / 要約基盤追加済み  
+・Exploration でのトピック表示追加済み  
 ・現在は拡張フェーズにある
 
 ---
@@ -254,6 +257,74 @@ Status: DONE
 
 ---
 
+### T17 自動実行（Windowsタスクスケジューラ対応）
+Status: DONE
+
+目的  
+・Windows タスク スケジューラから定期実行しやすい入口を追加する
+
+完了状態  
+・`run_smart_catch.bat` を追加済み  
+・`.venv\Scripts\python.exe` を使って既存 `app.py` を起動可能  
+・作業ディレクトリを保証可能  
+・config 未指定 / 指定の両方に対応  
+・README に Windows タスク スケジューラ手順を同期済み
+
+---
+### T18 設定バリデーション
+Status: DONE
+
+目的  
+・config/config.json の不正を実行前に検出し、設定エラーとして明確に停止させる  
+
+完了状態  
+・`src/config_loader.py` に validate_config を実装済み  
+・JSON構造 / 必須キー / 型チェックを実装済み  
+・異常系（A〜Dテスト）で正しくエラー検出できることを確認済み  
+・正常系で既存機能に影響がないことを確認済み  
+
+---
+### T19 トピック抽出（topic_id付与）
+Status: DONE
+
+目的  
+・収集した記事にトピックIDを付与し、話題単位での整理を可能にする
+
+完了状態  
+・`src/topic_extractors/topic_extractor.py` を追加済み  
+・各記事 dict に `topic_id` を付与可能  
+・matched_keywords と title / summary 語の最小ルールで topic 判定可能
+
+---
+
+### T20 トピック要約（内部データ生成）
+Status: DONE
+
+目的  
+・`topic_id` ごとに記事をまとめ、トピック単位の要約データを生成できるようにする
+
+完了状態  
+・`src/topic_summarizers/topic_summarizer.py` を追加済み  
+・`topic_id` / `article_count` / `top_keywords` / `summary` を生成可能  
+・matched_keywords 優先の設計を維持  
+・title / summary 語抽出時に最小限の stopwords を除外済み
+
+---
+
+### T21 トピック表示（Markdown反映）
+Status: DONE
+
+目的  
+・生成済みの topic summaries を Exploration Markdown に表示し、人間が読める形にする
+
+完了状態  
+・Exploration Markdown 先頭に `Topic Summaries` 節を表示可能  
+・`topic_id` / `article_count` / `top_keywords` / `summary` を表示可能  
+・その後に既存の `# Collected Articles` が続く  
+・Monitoring Markdown の既存形式を維持
+
+---
+
 ## 4. 次タスク（NEXT）
 
 なし
@@ -305,3 +376,9 @@ Status: DONE
 ・設定で切替可能な重複排除を追加済み  
 ・設定で切替可能なログ機構を追加済み  
 ・GUIで進行状態と結果確認が可能  
+・Windows タスク スケジューラ向けの自動実行入口を追加済み  
+・記事ごとの topic_id 付与が可能  
+・topic 単位の要約データを内部生成可能  
+・Exploration Markdown 先頭で topic summaries を確認可能  
+
+

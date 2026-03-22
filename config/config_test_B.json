@@ -1,0 +1,10 @@
+{
+  "sources": {
+    "rss": "invalid"
+  },
+
+  "monitoring": {
+    "enabled": true,
+    "keywords": ["AI"]
+  }
+}

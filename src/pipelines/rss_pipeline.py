@@ -6,6 +6,8 @@ from src.deduplicators.article_deduplicator import deduplicate_articles
 from src.fetchers.rss_fetcher import fetch_rss_entries
 from src.normalizers.rss_normalizer import normalize_rss_entries
 from src.summarizers.summary_generator import generate_missing_summaries
+from src.topic_extractors.topic_extractor import assign_topics
+from src.topic_summarizers.topic_summarizer import summarize_topics
 from src.writers.file_writer import save_markdown_file
 from src.writers.markdown_writer import build_markdown
 
@@ -93,6 +95,20 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
             deduplication_mode,
         )
 
+        classified_entries = assign_topics(classified_entries)
+        topic_count = len({article.get("topic_id") for article in classified_entries})
+        LOGGER.info(
+            "Topic extraction completed: total=%s topics=%s",
+            len(classified_entries),
+            topic_count,
+        )
+
+        topic_summaries = summarize_topics(classified_entries)
+        LOGGER.info(
+            "Topic summarization completed: topic_summaries=%s",
+            len(topic_summaries),
+        )
+
         exploration_articles = classified_entries
         monitoring_articles = [
             article for article in classified_entries if article.get("matched") is True
@@ -103,7 +119,10 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
             len(monitoring_articles),
         )
 
-        exploration_markdown = build_markdown(exploration_articles)
+        exploration_markdown = build_markdown(
+            exploration_articles,
+            topic_summaries=topic_summaries,
+        )
         monitoring_markdown = build_markdown(monitoring_articles)
         LOGGER.info("Markdown generation completed")
 

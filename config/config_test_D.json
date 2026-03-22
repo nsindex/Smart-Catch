@@ -1,0 +1,15 @@
+{
+  "sources": {
+    "rss": [
+      {
+        "name": "Test",
+        "url": "https://example.com/rss"
+      }
+    ]
+  },
+
+  "monitoring": {
+    "enabled": true,
+    "keywords": "AI"
+  }
+}

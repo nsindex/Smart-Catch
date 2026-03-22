@@ -1,0 +1,12 @@
+{
+  "app": {
+    "name": "Smart-Catch",
+    "version": "0.1",
+    "mode": "local"
+  },
+
+  "monitoring": {
+    "enabled": true,
+    "keywords": ["AI"]
+  }
+}

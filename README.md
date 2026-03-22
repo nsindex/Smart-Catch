@@ -1,293 +1,432 @@
-# Smart-Catch
+# TASK_PLAN（更新版 v2.1）
 
-## 1. プロジェクト概要
+## 1. 目的
 
-Smart-Catch は、公開されている RSS 情報を取得し、キーワード判定を行ったうえで Markdown 文字列を生成・保存する Python 製のローカル CLI / ローカル GUI アプリです。
+本ドキュメントは、Smart-Catch の開発タスクを
+**T単位（機能単位）で管理**し、CODEX が 1タスク単位で実装・確認・ドキュメント同期まで進められる状態を作ることを目的とする。
 
-現時点では MVP 段階であり、設定ファイルを入力として複数の RSS 情報源を順番に処理し、結果を標準出力へ表示しつつ Markdown ファイルとして保存する構成に加え、ローカル環境で実行できる GUI 入口まで実装されています。Web 化は未実装です。
+本ドキュメントにおける「タスク」とは、`Txx` 形式のIDを持つ項目のみを指す。  
+細かい実装手順はここでは分解しすぎず、各タスクの完了条件と停止条件を明確にする。
 
-## 2. 現在できること
+---
 
-- JSON 設定ファイルを読み込む
-- `sources.rss` に定義した複数 RSS を順番に取得する
-- RSS 記事を内部で扱いやすい最小構造へ正規化する
-- RSS `summary` に含まれる HTML タグを除去する
-- `monitoring.keywords` を使って記事本文要約とタイトルに対するキーワード部分一致判定を行う
-- `monitoring.keyword_weights` に応じて整数 `score` を調整する
-- `deduplication.enabled` に応じて記事重複を除去する
-- `logging` 設定に応じてコンソール / ファイルへログ出力する
-- 判定結果を Markdown 文字列へ変換する
-- Markdown を `output/exploration/collected_articles.md` と `output/monitoring/monitored_articles.md` に UTF-8 で保存する
-- CLI から実行し、結果を標準出力へ表示する
-- ローカル GUI から config 指定で pipeline を実行する
-- GUI 上で進行状態と簡易結果を確認する
-- GUI から保存済み出力ファイルを開く
+## 2. 現在の開発フェーズ
 
-## 3. 現在まだできないこと
+・MVP完成済み  
+・複数RSS対応済み  
+・Markdown保存対応済み  
+・Monitoring / Exploration 分離完了  
+・補助要約生成追加済み  
+・スコアリング改善済み  
+・重複排除追加済み  
+・ログ機構追加済み  
+・ローカルGUI改善済み  
+・自動実行対応済み  
+・現在は拡張フェーズにある
 
-- Web アプリとしての実行
-- 高度な意味類似ベースの重複判定
-- 高度な分類、ランキング、重み調整
-- 自動テストの整備
-- 高度なログローテーションや外部監視連携
-- 非同期実行やバックグラウンドジョブ管理
+---
 
-## 4. システム構成
+## 3. 完了済みタスク（DONE）
 
-各モジュールの責務は以下のとおりです。
+### T01 設定読込
+Status: DONE
 
-- `config_loader`: 設定読み込みのみ
-- `logging_config`: ログ初期化のみ
-- `fetcher`: 取得のみ
-- `normalizer`: 構造統一のみ
-- `summarizer`: 空 summary 記事への補助要約のみ
-- `classifier`: 判定と score 算出のみ
-- `deduplicator`: 機械的な重複排除のみ
-- `writer`: Markdown 文字列生成のみ
-- `file_writer`: ファイル保存のみ
-- `pipeline`: 接続と実行順制御のみ
-- `app.py`: CLI 入口のみ
-- `gui_app.py`: ローカル GUI 入口のみ
+目的  
+・設定ファイルを読み込めるようにする
 
-現在の処理フローは次のとおりです。
+完了状態  
+・`config_loader.py` 実装済み  
+・JSON読込可能
 
-1. `config/config.json` を読む
-2. `logging` 設定でログを初期化する
-3. RSS 設定一覧を取得する
-4. 各 RSS を順番に fetch する
-5. 取得結果を 1 つにまとめる
-6. fetch 結果を normalize する
-7. 必要に応じて空 summary 記事へ補助要約を行う
-8. `monitoring.keywords` と `monitoring.keyword_weights` を使って classify / score 算出を行う
-9. 必要に応じて重複排除を行う
-10. Exploration / Monitoring を分離する
-11. Markdown を保存する
-12. CLI から標準出力、または GUI から状態と結果サマリを表示する
-13. 処理状況をログへ記録する
+---
 
-## 5. ディレクトリ構成
+### T02 RSS取得
+Status: DONE
 
-```text
-Smart-Catch/
-├── app.py
-├── gui_app.py
-├── config/
-│   └── config.json
-├── src/
-│   ├── config_loader.py
-│   ├── logging_config.py
-│   ├── fetchers/
-│   │   └── rss_fetcher.py
-│   ├── normalizers/
-│   │   └── rss_normalizer.py
-│   ├── summarizers/
-│   │   └── summary_generator.py
-│   ├── deduplicators/
-│   │   └── article_deduplicator.py
-│   ├── classifiers/
-│   │   └── keyword_classifier.py
-│   ├── writers/
-│   │   ├── file_writer.py
-│   │   └── markdown_writer.py
-│   └── pipelines/
-│       └── rss_pipeline.py
-├── requirements.txt
-├── TASK_PLAN.md
-├── ARCHITECTURE.md
-└── PROJECT_CONTEXT.md
-```
+目的  
+・RSS記事を取得できるようにする
 
-## 6. セットアップ手順
+完了状態  
+・`rss_fetcher.py` 実装済み  
+・feedparser による取得可能  
+・基本的な例外処理あり
 
-Python 仮想環境を使う前提です。
+---
 
-```bash
-python -m venv .venv
-```
+### T03 正規化
+Status: DONE
 
-Windows PowerShell:
+目的  
+・取得データを共通構造へ変換する
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
+完了状態  
+・`rss_normalizer.py` 実装済み  
+・キー統一  
+・欠損吸収  
+・summary の HTML 除去  
+・HTMLエンティティ復元
 
-依存関係をインストールします。
+---
 
-```bash
-pip install -r requirements.txt
-```
+### T04 キーワード判定
+Status: DONE
 
-現在の `requirements.txt` には以下が含まれます。
+目的  
+・記事の一致判定を行う
 
-- `feedparser==6.0.12`
-- `sgmllib3k==1.0.0`
+完了状態  
+・`keyword_classifier.py` 実装済み  
+・title / summary に対する部分一致  
+・`matched` / `matched_keywords` / `score` を付与
 
-次に `config/config.json` を確認し、実在する RSS URL を設定してください。ダミー URL では動作しません。
+---
 
-## 7. 実行方法
+### T05 Markdown生成
+Status: DONE
 
-CLI 実行:
+目的  
+・記事一覧をMarkdown文字列へ変換する
 
-```bash
-python app.py
-python app.py config/config.json
-```
+完了状態  
+・`markdown_writer.py` 実装済み  
+・構造化Markdown出力可能
 
-GUI 実行:
+---
 
-```bash
-python gui_app.py
-```
+### T06 パイプライン接続
+Status: DONE
 
-GUI では config パス入力欄に `config/config.json` を指定し、`Run` ボタンで既存 pipeline を実行します。実行中は `Run` ボタンが無効化されます。
+目的  
+・各モジュールを接続して処理を流す
 
-## 8. `config.json` の役割と例
+完了状態  
+・`rss_pipeline.py` 実装済み  
+・取得 → 正規化 → 判定 → Markdown生成 の流れを接続済み
 
-`config/config.json` は、RSS 取得対象とキーワード判定条件、出力先、ログ設定を与える設定ファイルです。現時点で実処理に使っている主な項目は以下です。
+---
 
-- `sources.rss`: RSS 情報源の一覧
-- `name`: 情報源名
-- `url`: RSS URL
-- `max_items`: 取得件数上限
-- `monitoring.keywords`: キーワード判定に使う文字列一覧
-- `monitoring.keyword_weights`: score 重み設定
-- `deduplication.enabled`: 重複排除の有効/無効
-- `deduplication.mode`: `url_only` または `url_and_title`
-- `output.exploration_dir`: Exploration の保存先ディレクトリ
-- `output.monitoring_dir`: Monitoring の保存先ディレクトリ
-- `logging.level`: ログレベル
-- `logging.save_to_file`: ログファイル保存の有無
-- `logging.log_dir`: ログディレクトリ
+### T07 CLI実装
+Status: DONE
 
-例:
+目的  
+・CLIから実行できるようにする
 
-```json
-{
-  "sources": {
-    "rss": [
-      {
-        "name": "Hugging Face Blog",
-        "url": "https://huggingface.co/blog/feed.xml",
-        "max_items": 10
-      },
-      {
-        "name": "OpenAI Blog",
-        "url": "https://openai.com/blog/rss.xml",
-        "max_items": 10
-      }
-    ]
-  },
-  "monitoring": {
-    "keywords": [
-      "AI",
-      "生成AI",
-      "ChatGPT",
-      "OpenAI",
-      "Claude",
-      "Claude Code",
-      "Codex",
-      "LLM"
-    ],
-    "keyword_weights": {
-      "ChatGPT": 3,
-      "OpenAI": 3,
-      "Claude Code": 4,
-      "Codex": 4,
-      "LLM": 2
-    }
-  },
-  "deduplication": {
-    "enabled": false,
-    "mode": "url_and_title"
-  },
-  "output": {
-    "exploration_dir": "output/exploration",
-    "monitoring_dir": "output/monitoring"
-  },
-  "logging": {
-    "level": "INFO",
-    "save_to_file": true,
-    "log_dir": "logs"
-  }
-}
-```
+完了状態  
+・`app.py` 実装済み  
+・引数処理  
+・標準出力表示  
+・例外処理
 
-補足:
+---
 
-- `sources.rss` の全要素を順番に処理します
-- `monitoring.keywords` はタイトルと summary に対する部分一致判定に使います
-- `keyword_weights` 未設定の keyword は重み 1 です
-- `deduplication.enabled=false` のときは従来どおり動きます
-- `logging.save_to_file=false` のときはログファイルを保存しません
-- GUI でも同じ config を使います
+### T08 E2E動作確認
+Status: DONE
 
-## 9. 出力例の概要
+目的  
+・最小パイプラインが最後まで動くことを確認する
 
-出力は Markdown 文字列として生成され、CLI 実行時には標準出力へ表示されます。あわせて Exploration / Monitoring の両方が保存されます。ログは標準エラーまたはログファイル側に出ます。GUI は全文 Markdown ではなく簡易結果を表示します。
+完了状態  
+・CLIから実行成功  
+・Markdown出力確認  
+・HTML除去確認
 
-CLI の Markdown 構造は次の形式です。
+---
 
-```markdown
-# Collected Articles
+### T09 Markdown保存機能
+Status: DONE
 
-## 記事タイトル
-- URL: https://example.com/article
-- Source: RSS Source Name
-- Published: 2026-03-19T00:00:00Z
-- Matched: Yes
-- Score: 5
-- Matched Keywords: AI, OpenAI
-### Summary
-記事要約
-```
+目的  
+・標準出力だけでなく Markdown をファイル保存できるようにする
 
-GUI の結果表示例:
+完了状態  
+・`file_writer.py` 追加済み  
+・exploration 出力を保存可能  
+・既存の CLI 出力仕様維持
 
-```text
-[09:00:00] [INFO] Run started: config/config.json
-[09:00:01] [SUCCESS] Execution completed successfully.
-[09:00:01] [INFO] Exploration output: output/exploration/collected_articles.md
-[09:00:01] [INFO] Monitoring output: output/monitoring/monitored_articles.md
-[09:00:01] [INFO] Exploration article count: 12
-```
+---
 
-## 10. 現在の制約
+### T10 複数RSS対応
+Status: DONE
 
-- ローカル環境向けの CLI / GUI アプリです
-- Web UI は未実装です
-- 入力は JSON 設定ファイルです
-- Exploration は `output/exploration/collected_articles.md` に保存します
-- Monitoring は `output/monitoring/monitored_articles.md` に保存します
-- ログファイルは `logs/smart_catch.log` に保存します
-- 複数 RSS を順番に処理します
-- RSS `summary` の HTML タグ除去は行いますが、高度な整形は行いません
-- score は最小ルールベースであり、学習的な最適化はしていません
-- 重複排除は URL 完全一致と正規化タイトル一致のみです
-- ログは標準ライブラリ logging の最小構成です
-- GUI は pipeline を呼ぶ入口のみで、処理本体は持ちません
-- GUI は同期実行のため、実行中は画面操作が一時的に止まります
-- 公開情報のみを前提としています
+目的  
+・複数のRSSソースを統合処理できるようにする
 
-## 11. 今後の拡張候補
+完了状態  
+・configで複数RSSを扱える  
+・pipelineでループ処理済み  
+・結果を1つの出力へ統合
 
-現時点で未実装ですが、今後の候補としては以下が考えられます。
+---
 
-- Web UI 化
-- より高度な重複判定
-- `summary` の空白整形や本文品質の改善
-- 手動確認に加えた自動テスト整備
-- 高度なログローテーションや外部監視連携
-- GUI の非同期実行
+### T11 Monitoring / Exploration 分離
+Status: DONE
 
-これらは README 執筆時点では実装されていません。
+目的  
+・全記事出力と重要記事出力を分離する
 
-## 12. 注意事項
+完了状態  
+・Exploration = 全記事  
+・Monitoring = `matched == True` の記事  
+・`output/exploration/collected_articles.md` 保存  
+・`output/monitoring/monitored_articles.md` 保存  
+・Monitoring 0件でも落ちないことを確認済み  
+・CLI出力は従来どおり exploration を維持
 
-- `https://example.com/rss` のようなダミー URL では動作しません
-- 実行には到達可能な実在 RSS URL が必要です
-- RSS の `summary` に HTML が含まれる場合があります
-- 現在は `summary` の HTML タグのみ除去し、内容の高度な整形までは行いません
-- `deduplication.mode=url_and_title` では正規化タイトル一致も重複とみなします
-- `logging.save_to_file=true` のときは `logs` ディレクトリ配下にログファイルを作成します
-- GUI から出力ファイルを開く機能は Windows の `os.startfile()` を前提としています
-- 取得対象は公開情報に限定してください
+---
+
+### T12 LLM Summary生成
+Status: DONE
+
+目的  
+・summary が空の記事に対して、補助的な要約文を生成できるようにする
+
+完了状態  
+・`summary_generation.enabled` を config で切替可能  
+・`src/summarizers/summary_generator.py` を追加済み  
+・summary 空記事に対してのみ補助要約を試行  
+・失敗時は元記事のまま継続  
+・既存 Exploration / Monitoring / CLI 出力仕様を維持
+
+---
+
+### T13 スコアリング改善
+Status: DONE
+
+目的  
+・記事の重要度をより適切に評価できるようにする
+
+完了状態  
+・`monitoring.keyword_weights` を config で指定可能  
+・weight 未設定 keyword は 1 で動作  
+・title / summary 一致箇所の差を score に反映  
+・`matched` / `matched_keywords` の既存仕様維持
+
+---
+
+### T14 重複排除
+Status: DONE
+
+目的  
+・同一または類似記事の重複出力を減らす
+
+完了状態  
+・`deduplication.enabled` / `deduplication.mode` を config で指定可能  
+・`src/deduplicators/article_deduplicator.py` を追加済み  
+・URL 完全一致重複を除去可能  
+・正規化タイトル一致重複を除去可能  
+・残存優先順位は score → summary 長 → 先着  
+・既存 Exploration / Monitoring / CLI 出力仕様を維持
+
+---
+
+### T15 ログ機構
+Status: DONE
+
+目的  
+・処理状況と失敗原因を追跡しやすくする
+
+完了状態  
+・`src/logging_config.py` を追加済み  
+・config の `logging` 設定に従ってログ初期化可能  
+・INFO レベルで基本処理進行を記録可能  
+・`save_to_file=true` で `logs/smart_catch.log` 保存可能  
+・`save_to_file=false` でファイル保存停止可能  
+・致命エラー内容をログへ記録可能  
+・既存 CLI / Exploration / Monitoring / 保存仕様を維持
+
+---
+
+### T16 GUI / Web化（T16-A / T16-B ローカルGUI）
+Status: DONE
+
+目的  
+・CLI以外のローカル実行入口を追加し、使いやすさを改善する
+
+完了状態  
+・`gui_app.py` を追加済み  
+・config パス指定で既存 pipeline を実行可能  
+・成功 / 失敗を画面表示可能  
+・Exploration / Monitoring 保存先を表示可能  
+・時刻付き追記ログ形式の結果表示を追加済み  
+・Run ボタンの多重実行防止を追加済み  
+・出力ファイルを開く導線を追加済み  
+・既存 CLI 挙動を維持  
+・Web化は未実装
+
+---
+
+### T17 自動実行（Windowsタスクスケジューラ対応）
+Status: DONE
+
+目的  
+・Windows タスク スケジューラから定期実行しやすい入口を追加する
+
+完了状態  
+・`run_smart_catch.bat` を追加済み  
+・`.venv\Scripts\python.exe` を使って既存 `app.py` を起動可能  
+・作業ディレクトリを保証可能  
+・config 未指定 / 指定の両方に対応  
+・README に Windows タスク スケジューラ手順を同期済み
+
+---
+
+## 4. 次タスク（NEXT）
+
+T18 設定バリデーション
+
+---
+
+## 5. 保留タスク（BACKLOG）
+
+なし
+
+---
+
+## 6. 予定タスク（TODO）
+
+### T18 設定バリデーション
+Status: TODO
+
+目的  
+・`config/config.json` の不正を実行前に検出し、曖昧な実行時エラーではなく「設定エラー」として明確に停止させる  
+・現在の課題である config バリデーション不足を解消する
+
+方針  
+・既存構造を変更しない  
+・pipeline / CLI / GUI の責務は変更しない  
+・`config_loader.py` に最小限のバリデーションのみ追加する  
+・新規依存は追加しない  
+・JSON構造 / 必須キー / 型チェックに限定する
+
+変更対象  
+・`src/config_loader.py`
+
+変更禁止  
+・`src/pipelines/rss_pipeline.py`  
+・`app.py`  
+・`gui_app.py`  
+・新規ライブラリ追加  
+・設定構造の変更
+
+実装内容  
+・config 読込後に `validate_config(config)` を実行する
+
+以下の検証を行う。
+
+■ 構造チェック  
+・ルートが dict であること
+
+■ 必須キー  
+・`sources` が存在すること  
+・`sources.rss` が存在すること  
+・`monitoring` が存在すること  
+・`monitoring.keywords` が存在すること
+
+■ 型チェック  
+・`sources` は dict  
+・`sources.rss` は list  
+・`sources.rss[i]` は dict  
+・`sources.rss[i].url` は非空の str
+
+・`monitoring` は dict  
+・`monitoring.keywords` は list  
+・`monitoring.keyword_weights` は存在時 dict
+
+・`deduplication.enabled` は存在時 bool  
+・`deduplication.mode` は存在時 str
+
+・`output.exploration_dir` は存在時 str  
+・`output.monitoring_dir` は存在時 str
+
+・`logging.level` は存在時 str  
+・`logging.save_to_file` は存在時 bool  
+・`logging.log_dir` は存在時 str
+
+エラー仕様  
+・不正時は `ValueError` を送出する
+
+例:  
+・`sources is required`  
+・`sources.rss must be a list`  
+・`sources.rss[0].url must be a non-empty string`  
+・`monitoring.keywords must be a list`
+
+完了条件  
+・正常な config で従来通り実行できる  
+・構造不正を検出できる  
+・必須キー不足を検出できる  
+・型不正を検出できる  
+・既存機能（pipeline / CLI / GUI）に影響がない
+
+確認方法  
+1. 正常系  
+`python app.py config/config.json` が成功する
+
+2. 異常系（必須キー欠如）  
+`sources` を削除 → エラーになる
+
+3. 異常系（型不正）  
+`sources.rss` を文字列に変更 → エラーになる
+
+4. 異常系（値不正）  
+`sources.rss[0].url` を空文字 → エラーになる
+
+5. GUI確認  
+不正 config でも既存のエラー表示経路で処理される
+
+備考  
+・本タスクでは最小限のバリデーションのみ扱う  
+・将来的に検証処理が増加した場合は validator モジュール分離を検討する
+
+---
+
+## 7. タスク実行ルール
+
+・1タスク = 1機能単位で扱う  
+・CODEX は T単位で実装・確認・必要な資料更新まで行う  
+・人間は T完了時のみ確認と承認を行う  
+・途中の細かい手順分割は、原則として TASK_PLAN には書かない  
+・各タスクは必ず完了条件・確認方法・停止条件を持つ  
+・停止条件に触れた場合は自走せず停止して報告する
+
+---
+
+## 8. タスク終了時のルール
+
+・タスク完了時は `Status: DONE` に更新する  
+・次に実行すべきタスクが既に定義されている場合のみ、そのタスクを `NEXT` にする  
+・ `TASK_PLAN.md` に存在しない新規タスクの作成は禁止  
+・ `NEXT` タスクが存在しない場合は停止する  
+・タスク完了時は「全タスク完了」または「次タスク待ち」と明示して終了する  
+・次タスクは必ず人間の指示を待つ
+
+---
+
+## 9. 現在の到達点
+
+本プロジェクトは以下の状態にある。
+
+・複数RSS取得可能  
+・正規化 / 判定 / Markdown生成可能  
+・CLI実行可能  
+・ローカルGUI実行可能  
+・exploration 保存可能  
+・monitoring 保存可能  
+・0件時も動作継続可能  
+・責務分離構造を維持したまま拡張可能  
+・summary 空記事への補助要約経路を追加済み  
+・keyword_weights を使った score 調整可能  
+・設定で切替可能な重複排除を追加済み  
+・設定で切替可能なログ機構を追加済み  
+・GUIで進行状態と結果確認が可能  
+・Windows タスク スケジューラ向けの自動実行入口を追加済み
+
+## Exploration Markdown のトピック表示
+
+Exploration Markdown では、記事一覧の前に Topic Summaries 節が表示されます。
+ここでは topic_id ごとに記事数、主要キーワード、短い要約を確認できます。
+
+- Exploration: Topic Summaries の後に従来どおり # Collected Articles が続きます
+- Monitoring: 既存どおり記事一覧のみを表示します
+
+
