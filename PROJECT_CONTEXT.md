@@ -6,7 +6,8 @@
 キーワードベースで判定・スコアリング・トピック分類を行い、
 最終的にMarkdown形式で整理・出力・保存するローカルアプリケーションである。
 
-処理は完全にローカルで実行され、外部API・データベースは使用しない。
+処理はローカルで実行される。
+外部クラウドAPIやデータベースは使用せず、必要に応じてローカルOllamaを翻訳用途で利用できる。
 CLIおよびローカルGUIの両方から実行可能である。
 
 本システムは単なる情報収集ツールではなく、
@@ -40,7 +41,8 @@ CLIおよびローカルGUIの両方から実行可能である。
 ・Markdown文字列生成  
 ・CLI標準出力  
 ・Exploration / Monitoring 分離出力  
-・Markdownファイル保存  
+・英語版Markdownファイル保存  
+・日本語版Markdownファイル保存  
 ・履歴保存（configで切替可能）  
 
 ### 実行環境
@@ -89,9 +91,11 @@ CLI / GUI から設定ファイルパスを指定可能であり、
 
 保存先：
 - `output/exploration/collected_articles.md`
+- `output/exploration/collected_articles_ja.md`
 
 履歴保存（有効時）：
 - `collected_articles_YYYY-MM-DD.md`
+- `collected_articles_ja_YYYY-MM-DD.md`
 
 ---
 
@@ -102,9 +106,11 @@ CLI / GUI から設定ファイルパスを指定可能であり、
 
 保存先：
 - `output/monitoring/monitored_articles.md`
+- `output/monitoring/monitored_articles_ja.md`
 
 履歴保存（有効時）：
 - `monitored_articles_YYYY-MM-DD.md`
+- `monitored_articles_ja_YYYY-MM-DD.md`
 
 ---
 
@@ -112,7 +118,7 @@ CLI / GUI から設定ファイルパスを指定可能であり、
 
 ・コンソール出力  
 ・設定に応じたファイル出力  
-・保存先: `logs/smart_catch.log`
+・保存先: `logs/smart_catch.log`  
 
 ---
 
@@ -142,7 +148,10 @@ load_config
 → build_action_suggestions
 → split
 → markdown生成
-→ 保存（最新 + 履歴）
+→ 保存（英語版）
+→ 日本語翻訳（出力後）
+→ 保存（日本語版）
+→ 履歴保存
 → 出力 / GUI表示
 → ログ記録
 
@@ -161,6 +170,7 @@ load_config
 ・topic_summarizer：トピック要約のみ  
 ・report_generator：日次レポート生成のみ  
 ・action_generator：行動提案生成のみ  
+・translator：出力済みMarkdownの日本語化のみ  
 ・writer：文字列生成のみ  
 ・file_writer：保存のみ  
 ・pipeline：接続と順序制御のみ  
@@ -192,21 +202,23 @@ load_config
 ・日次レポート生成可能  
 ・行動提案生成可能  
 ・Exploration / Monitoring 分離可能  
+・英語版Markdown保存可能  
+・日本語版Markdown保存可能  
 ・履歴保存可能  
 ・CLI / GUI 両対応  
 ・自動実行対応済み  
+・ローカルOllama優先の翻訳レイヤー導入済み  
 
 ---
 
-## 9. 最新更新（T29）
+## 9. 最新更新（翻訳レイヤー追加）
 
-・topic 抽出ロジックを、共通語やキーワード一致で既存 topic に結合する方式から、決定的な `topic_key` で分割する方式へ変更した  
-・`matched_keywords` を主軸にし、存在する場合は代表語を topic_key として使う  
-・`matched_keywords` が無い記事は `source` を fallback に使い、さらに無い場合は `other` を使う  
-・背景として、従来は AI 関連記事で全記事が単一 topic に収束しやすい問題があった  
-・実行確認では Topic Count が 1 から 4 に改善した  
-・pipeline / topic_summarizer / 出力構造は維持されている  
-・現在は安定状態であり、精度改善フェーズは完了した  
+・`src/translators/markdown_translator.py` を追加し、英語版Markdown保存後に日本語版Markdownを追加保存できるようにした  
+・日本語版は `collected_articles_ja.md` / `monitored_articles_ja.md` として保存される  
+・履歴保存有効時は `*_ja_YYYY-MM-DD.md` も追加保存される  
+・翻訳はローカルOllamaを優先し、失敗時は辞書翻訳または原文で継続する  
+・英語原本の保存仕様、pipeline、topic / report / action 出力構造は維持されている  
+・現在は安定状態であり、実装・精度改善・翻訳導入まで完了している  
 
 ---
 
@@ -221,5 +233,5 @@ load_config
 
 ## 11. 現在のフェーズ
 
-👉 MVP + 自動化 + 意思決定支援 完成  
+👉 MVP + 自動化 + 意思決定支援 + 日本語閲覧対応 完成  
 👉 現在は安定運用フェーズ

@@ -10,6 +10,7 @@ from src.report_generators.daily_report_generator import build_daily_report
 from src.summarizers.summary_generator import generate_missing_summaries
 from src.topic_extractors.topic_extractor import assign_topics
 from src.topic_summarizers.topic_summarizer import summarize_topics
+from src.translators.markdown_translator import translate_markdown_to_japanese
 from src.writers.file_writer import save_markdown_file, save_markdown_history_file
 from src.writers.markdown_writer import build_markdown
 
@@ -153,6 +154,28 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
         LOGGER.info("Exploration markdown saved: %s", exploration_path)
         LOGGER.info("Monitoring markdown saved: %s", monitoring_path)
 
+        exploration_markdown_ja = translate_markdown_to_japanese(
+            exploration_markdown,
+            document_type="exploration",
+        )
+        monitoring_markdown_ja = translate_markdown_to_japanese(
+            monitoring_markdown,
+            document_type="monitoring",
+        )
+
+        exploration_ja_path = save_markdown_file(
+            exploration_markdown_ja,
+            config["output"]["exploration_dir"],
+            "collected_articles_ja.md",
+        )
+        monitoring_ja_path = save_markdown_file(
+            monitoring_markdown_ja,
+            config["output"]["monitoring_dir"],
+            "monitored_articles_ja.md",
+        )
+        LOGGER.info("Exploration Japanese markdown saved: %s", exploration_ja_path)
+        LOGGER.info("Monitoring Japanese markdown saved: %s", monitoring_ja_path)
+
         if save_history:
             exploration_history_path = save_markdown_history_file(
                 exploration_markdown,
@@ -164,8 +187,20 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
                 config["output"]["monitoring_dir"],
                 "monitored_articles.md",
             )
+            exploration_history_ja_path = save_markdown_history_file(
+                exploration_markdown_ja,
+                config["output"]["exploration_dir"],
+                "collected_articles_ja.md",
+            )
+            monitoring_history_ja_path = save_markdown_history_file(
+                monitoring_markdown_ja,
+                config["output"]["monitoring_dir"],
+                "monitored_articles_ja.md",
+            )
             LOGGER.info("Exploration history markdown saved: %s", exploration_history_path)
             LOGGER.info("Monitoring history markdown saved: %s", monitoring_history_path)
+            LOGGER.info("Exploration Japanese history markdown saved: %s", exploration_history_ja_path)
+            LOGGER.info("Monitoring Japanese history markdown saved: %s", monitoring_history_ja_path)
 
         LOGGER.info("Pipeline completed")
 

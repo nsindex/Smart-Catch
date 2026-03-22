@@ -20,17 +20,26 @@ def _build_local_summary(entry: dict[str, Any]) -> str:
     summary_parts = []
 
     if title:
-        summary_parts.append(f"Title: {title}.")
+        summary_parts.append(f"{title} について扱っている。")
+    else:
+        summary_parts.append("対象記事の概要を簡潔にまとめる。")
+
+    detail_parts = []
     if source_name:
-        summary_parts.append(f"Source: {source_name}.")
+        detail_parts.append(f"情報源は {source_name}")
     if published:
-        summary_parts.append(f"Published: {published}.")
+        detail_parts.append(f"公開日は {published}")
     if tag_terms:
-        summary_parts.append(f"Topics: {', '.join(tag_terms[:5])}.")
+        detail_parts.append(f"関連トピックは {', '.join(tag_terms[:5])}")
 
-    summary_parts.append("Original feed summary was not provided.")
+    if detail_parts:
+        summary_parts.append("、".join(detail_parts) + "。")
+    else:
+        summary_parts.append("補助要約として基本情報を整理している。")
 
-    return " ".join(summary_parts)
+    summary_parts.append("元のフィード要約が無いため、題名と付随情報をもとに要点を確認しやすい形で補っている。")
+
+    return "".join(summary_parts)
 
 
 def generate_missing_summaries(entries: list[dict], enabled: bool = False) -> list[dict]:
