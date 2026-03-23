@@ -156,6 +156,21 @@ Status: DONE
 
 ---
 
+### DONE 追記
+
+### T35 Markdown article 出力への topic_id 追加
+Status: DONE
+
+目的
+・各 article の Markdown メタ情報に既存の `topic_id` を追加出力する
+・後段が推測なしで grouping できる状態にする
+
+完了状態
+・Exploration / Monitoring の article ブロックに `topic_id` を追加済み
+・topic分類ロジックや pipeline 構造は未変更
+
+---
+
 ## 4. 次タスク（NEXT）
 
 なし（次タスク待ち）
@@ -201,3 +216,7 @@ Status: DONE
 ・ローカルOllama優先の翻訳レイヤーを導入済み  
 ・Ollama失敗時もフォールバックで継続可能  
 ・現在は安定運用フェーズにある  
+
+
+
+

@@ -175,6 +175,7 @@ def build_markdown(
             "\n".join(
                 [
                     f"## {title}",
+                    f"- topic_id: {entry.get('topic_id', '')}",
                     f"- URL: {url}",
                     f"- Source: {source}",
                     f"- Published: {published_at}",
@@ -188,3 +189,4 @@ def build_markdown(
         )
 
     return "\n\n".join(markdown_parts)
+

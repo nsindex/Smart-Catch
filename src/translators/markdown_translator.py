@@ -18,6 +18,7 @@ EXACT_LINE_MAP = {
 }
 
 LABEL_MAP = {
+    "- topic_id:": "- topic_id:",
     "- Summary:": "- 要約:",
     "- Top Keywords:": "- 主要キーワード:",
     "- Article Count:": "- 記事数:",
@@ -350,4 +351,5 @@ def translate_markdown_to_japanese(
         translated_lines.append(_translate_text_to_japanese(line))
 
     return "\n".join(translated_lines)
+
 

@@ -77,6 +77,7 @@ Exploration では以下を確認できます。
 - `# Action Suggestions`
 - `## Topic Summaries`
 - `# Collected Articles`
+- 各 article ブロックのメタ情報（`topic_id`, URL, Source, Published, Matched, Score, Matched Keywords, Summary）
 
 Monitoring では一致記事のみを保存します。
 
@@ -161,3 +162,4 @@ run_smart_catch.bat config\config.json
 - Ollama未起動時はフォールバック翻訳になるため、日本語の自然さは低下する場合があります
 - Web UI は未実装です
 - 通知連携やDB保存は未実装です
+
