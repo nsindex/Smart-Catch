@@ -106,7 +106,7 @@ def _translate_text_to_japanese(text: str) -> str:
 
     translated_text = text
 
-    for source_text, target_text in PHRASE_MAP:
+    for source_text, target_text in sorted(PHRASE_MAP, key=lambda x: len(x[0]), reverse=True):
         translated_text = re.sub(
             re.escape(source_text),
             target_text,
