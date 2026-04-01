@@ -22,6 +22,13 @@
 - [ ] python -m pytest --version で pytest がインストール済みか確認
 - [ ] pytest.raises(match=) のパターンはエラーメッセージの実際の文字列で検証する
 - [ ] バリデーション関数の実装前に、呼び出し元が渡す実際の値の形式を確認する
+- [ ] pytest.raises(match=) を書く前に、pytest -s で実際のエラーメッセージを確認する
+- [ ] パス操作関数は実装後に print(resolved_path) で出力を目視確認する
+
+## ファイル書き換え時の注意
+- テキストファイルの上書きは Write ツールではなく Python で直接行う
+  例: python -c "open('requirements.txt', 'w', encoding='utf-8').write('...')"
+- 書き換え後は file <ファイル名> でエンコーディングを確認する
 
 ## セッション終了前チェックリスト
 - [ ] python app.py を実行して動作確認したか
