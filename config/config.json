@@ -10,38 +10,38 @@
       {
         "name": "Hugging Face Blog",
         "url": "https://huggingface.co/blog/feed.xml",
-        "max_items": 10
+        "max_items": 5
       },
       {
         "name": "OpenAI Blog",
         "url": "https://openai.com/blog/rss.xml",
-        "max_items": 10
+        "max_items": 5
       },
       {
         "name": "Zenn",
         "url": "https://zenn.dev/feed",
-        "max_items": 10
+        "max_items": 5
       },
       {
         "name": "Qiita",
         "url": "https://qiita.com/popular-items/feed",
-        "max_items": 10,
+        "max_items": 5,
         "min_score": 3
       },
       {
         "name": "Google DeepMind Blog",
         "url": "https://deepmind.google/blog/rss.xml",
-        "max_items": 10
+        "max_items": 5
       },
       {
         "name": "Meta AI Research",
         "url": "https://engineering.fb.com/category/ai-research/feed/",
-        "max_items": 10
+        "max_items": 5
       },
       {
         "name": "ITmedia AI",
         "url": "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml",
-        "max_items": 10
+        "max_items": 5
       }
     ],
     "web": [],

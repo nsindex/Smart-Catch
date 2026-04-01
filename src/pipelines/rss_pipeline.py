@@ -215,10 +215,12 @@ def run_rss_pipeline(
         exploration_markdown_ja = translate_markdown_to_japanese(
             exploration_markdown,
             document_type="exploration",
+            use_ollama=False,
         )
         monitoring_markdown_ja = translate_markdown_to_japanese(
             monitoring_markdown,
             document_type="monitoring",
+            use_ollama=True,
         )
         LOGGER.info("Japanese translation completed")
         emit_progress("INFO", "日本語翻訳完了")
