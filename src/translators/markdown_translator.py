@@ -1,6 +1,8 @@
 import json
 import logging
+import os
 import re
+import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -119,10 +121,21 @@ def _load_translation_cache() -> dict:
 def _save_translation_cache(cache: dict) -> None:
     try:
         _CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _CACHE_FILE.write_text(
-            json.dumps(cache, ensure_ascii=False, indent=None, separators=(",", ":")),
-            encoding="utf-8",
+        content = json.dumps(cache, ensure_ascii=False, indent=None, separators=(",", ":"))
+        fd, tmp_name = tempfile.mkstemp(
+            dir=_CACHE_FILE.parent, prefix=_CACHE_FILE.name, suffix=".tmp"
         )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            Path(tmp_name).replace(_CACHE_FILE)
+        except Exception:
+            tmp = Path(tmp_name)
+            if tmp.exists():
+                tmp.unlink(missing_ok=True)
+            raise
     except Exception as exc:
         LOGGER.warning("Failed to save translation cache: %s", exc)
 
