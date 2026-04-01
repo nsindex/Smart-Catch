@@ -37,33 +37,36 @@ GUI:
 python gui_app.py
 ```
 
-Windowsタスクスケジューラ:
+Windowsタスクスケジューラ（GUIを起動）:
 
 ```bat
 run_smart_catch.bat
-run_smart_catch.bat config\config.json
 ```
 
 ---
 
 ## 3. 出力ファイル
 
-Exploration:
+Exploration（全記事）:
 
 - `output/exploration/collected_articles.md`
 - `output/exploration/collected_articles_ja.md`
 
-Monitoring:
+Monitoring（キーワード一致記事）:
 
-- `output/monitoring/monitored_articles.md`
-- `output/monitoring/monitored_articles_ja.md`
+- `output/monitoring/archive/monitored_articles.md`
+- `output/monitoring/archive/monitored_articles_ja.md`
 
-履歴保存が有効な場合:
+履歴保存が有効な場合（`output.save_history: true`）:
 
-- `collected_articles_YYYY-MM-DD.md`
-- `collected_articles_ja_YYYY-MM-DD.md`
-- `monitored_articles_YYYY-MM-DD.md`
-- `monitored_articles_ja_YYYY-MM-DD.md`
+| ファイル | 保存先 |
+|---------|--------|
+| `collected_articles_YYYY-MM-DD.md` | `output/exploration/` |
+| `collected_articles_ja_YYYY-MM-DD.md` | `output/exploration/` |
+| `monitored_articles_YYYY-MM-DD.md` | `output/monitoring/archive/` |
+| `monitored_articles_ja_YYYY-MM-DD.md` | `output/monitoring/` |
+
+日付付き日本語版（`monitored_articles_ja_YYYY-MM-DD.md`）のみ `output/monitoring/` 直下に保存されます。他のモニタリングファイルは `archive/` サブフォルダに格納されます。
 
 英語版は原本として維持され、日本語版は閲覧用の別ファイルとして追加保存されます。
 
@@ -98,7 +101,28 @@ Monitoring では一致記事のみを保存します。
 
 ---
 
-## 6. Ollama準備手順（任意）
+## 6. GUIの機能
+
+### メインタブ
+
+- 設定ファイルの選択と実行
+- パイプライン実行はワーカースレッドで動作するためGUIが固まりません
+- 実行ログをリアルタイム表示
+
+### Ollama自動検知・自動起動
+
+GUI起動時に `localhost:11434` への接続を確認し、Ollamaが起動していない場合は自動起動を試みます。
+実行ボタン押下時にも起動状態を確認し、未起動の場合は警告を表示します。
+
+### キーワード管理タブ
+
+`monitoring.keywords` の一覧表示・追加・削除・保存が GUI から行えます。
+設定ファイルを選択し直した際は、キーワードリストが自動的に再読み込みされます。
+保存はアトミック書き込み（tmp → rename）で行い、書き込み中断による破損を防いでいます。
+
+---
+
+## 7. Ollama準備手順（任意）
 
 翻訳品質を上げたい場合は、ローカルで Ollama を起動してください。
 
@@ -110,9 +134,11 @@ ollama pull gemma3n:e4b
 接続先は `http://localhost:11434/api/generate` を使用します。
 外部クラウドAPIは使用しません。
 
+GUIを使用する場合、起動時に自動で検知・起動を試みるため、手動での `ollama serve` は不要な場合があります。
+
 ---
 
-## 7. config の主な項目
+## 8. config の主な項目
 
 - `sources.rss`: RSSソース一覧
 - `monitoring.keywords`: 監視キーワード
@@ -128,16 +154,15 @@ ollama pull gemma3n:e4b
 
 ---
 
-## 8. 自動実行（Windowsタスクスケジューラ）
+## 9. 自動実行（Windowsタスクスケジューラ）
 
 Windows タスク スケジューラから定期実行する場合は `run_smart_catch.bat` を使います。
-このバッチはプロジェクトルートへ移動し、`.venv\Scripts\python.exe` で既存の `app.py` をそのまま起動するため、作業ディレクトリ依存を減らしやすいです。
+このバッチはプロジェクトルートへ移動し、仮想環境を有効化した上で GUI（`gui_app.py`）を起動します。
 
 手動実行:
 
 ```bat
 run_smart_catch.bat
-run_smart_catch.bat config\config.json
 ```
 
 タスクスケジューラ設定手順:
@@ -145,9 +170,8 @@ run_smart_catch.bat config\config.json
 1. タスク スケジューラで新しいタスクを作成する
 2. トリガーで毎朝など任意の実行時刻を設定する
 3. 操作で「プログラムの開始」を選ぶ
-4. プログラム/スクリプトに `run_smart_catch.bat` を指定する
-5. 「開始 (オプション)」にはプロジェクトルートを指定する
-6. 別の設定ファイルを使う場合は引数に `config\config.json` などを渡す
+4. プログラム/スクリプトに `run_smart_catch.bat` の絶対パスを指定する
+5. 「開始 (オプション)」の設定は不要（バッチ内でディレクトリ移動します）
 
 ログ確認:
 
@@ -156,10 +180,9 @@ run_smart_catch.bat config\config.json
 
 ---
 
-## 9. 現在の制約
+## 10. 現在の制約
 
 - 翻訳はローカルOllamaの状態に依存します
 - Ollama未起動時はフォールバック翻訳になるため、日本語の自然さは低下する場合があります
 - Web UI は未実装です
 - 通知連携やDB保存は未実装です
-
