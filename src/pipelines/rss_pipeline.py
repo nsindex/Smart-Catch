@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import Callable
 
 from src.action_generators.action_generator import build_action_suggestions
 from src.classifiers.keyword_classifier import classify_entries
@@ -20,8 +21,19 @@ from src.writers.markdown_writer import build_markdown
 LOGGER = logging.getLogger(__name__)
 
 
-def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list[str]]:
+def run_rss_pipeline(
+    config_path: str = "config/config.json",
+    progress_callback: Callable[[str, str], None] | None = None,
+) -> tuple[str, list[str]]:
     LOGGER.info("Pipeline started")
+
+    def emit_progress(level: str, message: str) -> None:
+        if progress_callback is None:
+            return
+        try:
+            progress_callback(level, message)
+        except Exception:
+            LOGGER.warning("Progress callback failed", exc_info=True)
 
     try:
         config = load_config(config_path)
@@ -47,6 +59,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
         purged_files.extend(purge_old_files(monitoring_archive_dir, days_old=3))
         purged_files.extend(purge_old_files(monitoring_dir, days_old=7))
         LOGGER.info("Purge completed: %s file(s) removed", len(purged_files))
+        emit_progress("INFO", f"古い出力を {len(purged_files)} 件整理しました")
 
         all_fetched_entries = []
 
@@ -62,6 +75,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
             all_fetched_entries.extend(fetched_entries)
 
         LOGGER.info("Fetched total entries: %s", len(all_fetched_entries))
+        emit_progress("INFO", f"RSS取得完了: {len(all_fetched_entries)} 件")
 
         normalized_entries = normalize_rss_entries(all_fetched_entries)
         LOGGER.info("Normalization completed: %s entries", len(normalized_entries))
@@ -82,6 +96,11 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
             remaining_empty_summary_count,
             summary_generation_enabled,
         )
+        emit_progress(
+            "INFO",
+            "要約生成完了: "
+            f"{empty_summary_count - remaining_empty_summary_count} 件を補完",
+        )
 
         keywords = config["monitoring"]["keywords"]
         keyword_weights = config["monitoring"].get("keyword_weights", {})
@@ -97,6 +116,10 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
             "Classification completed: total=%s matched=%s",
             len(classified_entries),
             matched_count,
+        )
+        emit_progress(
+            "INFO",
+            f"分類完了: 全{len(classified_entries)}件 / 監視一致{matched_count}件",
         )
 
         source_min_scores = {
@@ -143,6 +166,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
             "Topic summarization completed: topic_summaries=%s",
             len(topic_summaries),
         )
+        emit_progress("INFO", f"トピック要約完了: {len(topic_summaries)} 件")
 
         daily_report = build_daily_report(classified_entries, topic_summaries)
         LOGGER.info("Daily report generation completed")
@@ -171,6 +195,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
         )
         monitoring_markdown = build_markdown(monitoring_articles)
         LOGGER.info("Markdown generation completed")
+        emit_progress("INFO", "Markdown生成完了")
 
         exploration_path = save_markdown_file(
             exploration_markdown,
@@ -183,7 +208,10 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
         )
         LOGGER.info("Exploration markdown saved: %s", exploration_path)
         LOGGER.info("Monitoring markdown saved: %s", monitoring_path)
+        emit_progress("INFO", "英語Markdown保存完了")
 
+        LOGGER.info("Japanese translation started")
+        emit_progress("INFO", "日本語翻訳を開始しました")
         exploration_markdown_ja = translate_markdown_to_japanese(
             exploration_markdown,
             document_type="exploration",
@@ -192,6 +220,8 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
             monitoring_markdown,
             document_type="monitoring",
         )
+        LOGGER.info("Japanese translation completed")
+        emit_progress("INFO", "日本語翻訳完了")
 
         exploration_ja_path = save_markdown_file(
             exploration_markdown_ja,
@@ -205,6 +235,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
         )
         LOGGER.info("Exploration Japanese markdown saved: %s", exploration_ja_path)
         LOGGER.info("Monitoring Japanese markdown saved: %s", monitoring_ja_path)
+        emit_progress("INFO", "日本語Markdown保存完了")
 
         if save_history:
             exploration_history_path = save_markdown_history_file(
@@ -233,6 +264,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list
             LOGGER.info("Monitoring Japanese history markdown saved: %s", monitoring_history_ja_path)
 
         LOGGER.info("Pipeline completed")
+        emit_progress("INFO", "パイプライン完了")
 
         return exploration_markdown, purged_files
     except Exception:
