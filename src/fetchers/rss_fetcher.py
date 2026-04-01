@@ -1,4 +1,35 @@
+import ipaddress
+from urllib.parse import urlparse
+
 import feedparser
+
+
+def validate_rss_url(url: str) -> None:
+    """RSS URLのスキームとホストを検証する。http/https のみ許可。
+    localhost・プライベートIP・ループバックアドレスは拒否する。
+    """
+    if not isinstance(url, str) or not url.strip():
+        raise ValueError("RSS URL must be a non-empty string.")
+
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError(f"RSS URL must use http/https scheme, got: {parsed.scheme!r}")
+
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise ValueError("RSS URL must include a host.")
+
+    if host == "localhost":
+        raise ValueError("localhost is not allowed in RSS URL.")
+
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.is_private or ip.is_loopback or ip.is_link_local:
+            raise ValueError(f"private/local addresses are not allowed: {host}")
+    except ValueError as exc:
+        if "private" in str(exc) or "local" in str(exc):
+            raise
+        # ホスト名（IPでない）の場合は通過
 
 
 def fetch_rss_entries(rss_config: dict) -> list[dict]:
@@ -6,6 +37,7 @@ def fetch_rss_entries(rss_config: dict) -> list[dict]:
         raise ValueError("RSS configuration must include a non-empty 'url'.")
 
     source_url = rss_config["url"]
+    validate_rss_url(source_url)
     source_name = rss_config.get("name", "")
     max_items = rss_config.get("max_items")
 
