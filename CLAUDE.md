@@ -71,3 +71,5 @@ Smart-Catch/
 │   └── monitoring/                   # キーワード一致記事（英語・日本語）
 └── logs/
 ```
+
+@docs/AGENTS.md

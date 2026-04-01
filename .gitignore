@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 .env
 logs/
-output/*.bak
+output/
+*.bak
