@@ -1,13 +1,14 @@
 from datetime import date
 from pathlib import Path
 
-from src.utils.file_manager import get_unique_path
+from src.utils.file_manager import get_unique_path, resolve_safe_output_dir
 
 
 def save_markdown_file(
     markdown: str, output_dir: str, filename: str = "collected_articles.md"
 ) -> str:
-    path = Path(output_dir) / filename
+    safe_dir = resolve_safe_output_dir(output_dir)
+    path = safe_dir / filename
 
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
