@@ -23,7 +23,9 @@ def main() -> int:
         config = load_config(config_path)
         setup_logging(config.get("logging", {}))
         LOGGER.info("CLI execution started with config: %s", config_path)
-        markdown = run_rss_pipeline(config_path)
+        markdown, purged_files = run_rss_pipeline(config_path)
+        if purged_files:
+            LOGGER.info("Purged %s old file(s)", len(purged_files))
     except Exception as exc:
         LOGGER.exception("CLI execution failed")
         print(f"Error: {exc}", file=sys.stderr)

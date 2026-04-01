@@ -1,7 +1,14 @@
 import json
+import logging
 import re
 import urllib.error
 import urllib.request
+from pathlib import Path
+
+LOGGER = logging.getLogger(__name__)
+
+_CACHE_FILE = Path("output/translation_cache.json")
+_CACHE_MAX_ENTRIES = 2000
 
 
 EXACT_LINE_MAP = {
@@ -97,7 +104,30 @@ HIGHLIGHT_ARTICLE_PATTERN = re.compile(r"^- \[(?P<topic>[^\]]+)\] (?P<title>.*) 
 TOPIC_ID_PATTERN = re.compile(r"^#{1,6}\s+topic_\d+$")
 URL_ONLY_PATTERN = re.compile(r"^https?://", re.IGNORECASE)
 JAPANESE_CHAR_PATTERN = re.compile(r"[ぁ-んァ-ン一-龠々ー]")
-_TRANSLATION_CACHE = {}
+
+
+def _load_translation_cache() -> dict:
+    if not _CACHE_FILE.exists():
+        return {}
+    try:
+        return json.loads(_CACHE_FILE.read_text(encoding="utf-8"))
+    except Exception as exc:
+        LOGGER.warning("Failed to load translation cache: %s", exc)
+        return {}
+
+
+def _save_translation_cache(cache: dict) -> None:
+    try:
+        _CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _CACHE_FILE.write_text(
+            json.dumps(cache, ensure_ascii=False, indent=None, separators=(",", ":")),
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        LOGGER.warning("Failed to save translation cache: %s", exc)
+
+
+_TRANSLATION_CACHE: dict = _load_translation_cache()
 
 
 def _translate_text_to_japanese(text: str) -> str:
@@ -236,6 +266,12 @@ def _translate_text_with_ollama(text: str, content_type: str = "general") -> str
         return None
 
     _TRANSLATION_CACHE[cache_key] = translated_text
+    if len(_TRANSLATION_CACHE) > _CACHE_MAX_ENTRIES:
+        # 古いエントリを先頭から削除して上限に収める
+        excess = len(_TRANSLATION_CACHE) - _CACHE_MAX_ENTRIES
+        for old_key in list(_TRANSLATION_CACHE.keys())[:excess]:
+            del _TRANSLATION_CACHE[old_key]
+    _save_translation_cache(_TRANSLATION_CACHE)
     return translated_text
 
 
@@ -305,12 +341,26 @@ def _translate_highlight_article_line(line: str) -> str:
 def translate_markdown_to_japanese(
     markdown_text: str,
     document_type: str = "exploration",
+    use_ollama: bool = False,
 ) -> str:
+    """Markdown を日本語に翻訳する。
+
+    Args:
+        markdown_text: 翻訳対象の Markdown 文字列。
+        document_type: "exploration" または "monitoring"。
+        use_ollama: True のとき Ollama LLM 翻訳を試みる（遅いが高品質）。
+                    False のとき辞書翻訳のみ（高速）。
+    """
     if not isinstance(markdown_text, str):
         raise ValueError("markdown_text must be a string.")
 
     if not isinstance(document_type, str):
         raise ValueError("document_type must be a string.")
+
+    def _translate_content(text: str, content_type: str = "general") -> str:
+        if use_ollama:
+            return _translate_content_with_fallback(text, content_type=content_type)
+        return _translate_text_to_japanese(text)
 
     translated_lines = []
     in_article_summary = False
@@ -325,7 +375,7 @@ def translate_markdown_to_japanese(
             if line.startswith("## ") or line.startswith("# ") or line.startswith("- "):
                 in_article_summary = False
             elif line.strip():
-                translated_lines.append(_translate_content_with_fallback(line))
+                translated_lines.append(_translate_content(line))
                 continue
             else:
                 translated_lines.append(line)
@@ -348,11 +398,22 @@ def translate_markdown_to_japanese(
             continue
 
         if line.startswith("## "):
-            translated_lines.append(_translate_title_line(line))
+            if line in EXACT_LINE_MAP:
+                translated_lines.append(EXACT_LINE_MAP[line])
+            else:
+                title = line[3:].strip()
+                translated_lines.append(f"## {_translate_content(title, 'title')}")
             continue
 
         if line.startswith("- ["):
-            translated_lines.append(_translate_highlight_article_line(line))
+            match = HIGHLIGHT_ARTICLE_PATTERN.match(line)
+            if match:
+                topic_id = match.group("topic")
+                title = _translate_content(match.group("title"), "title")
+                score = match.group("score")
+                translated_lines.append(f"- [{topic_id}] {title} (スコア: {score})")
+            else:
+                translated_lines.append(line)
             continue
 
         if line.startswith("- "):

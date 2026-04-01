@@ -1,8 +1,11 @@
 import json
 import logging
 import os
+import queue
 import re
+import threading
 import tkinter as tk
+import traceback
 from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
@@ -29,6 +32,8 @@ class SmartCatchGUI:
         self.exploration_path_var = tk.StringVar(value="")
         self.monitoring_path_var = tk.StringVar(value="")
         self.status_var = tk.StringVar(value="Status: Ready")
+        self._worker_queue: queue.Queue[tuple[str, object]] = queue.Queue()
+        self._pipeline_thread: threading.Thread | None = None
 
         self._build_notebook()
         self._append_result("INFO", "Smart-Catch local GUI is ready.")
@@ -233,11 +238,6 @@ class SmartCatchGUI:
 
     def run_pipeline(self) -> None:
         config_path = self.config_path_var.get().strip() or DEFAULT_CONFIG_PATH
-        self._set_running_state(True)
-        self._append_result("INFO", "----------------------------------------")
-        self._append_result("INFO", f"Run started: {config_path}")
-        self.root.update_idletasks()
-
         try:
             config_file = Path(config_path)
             if not config_file.exists():
@@ -250,12 +250,7 @@ class SmartCatchGUI:
             from src.utils.ollama_health import is_ollama_running
             if not is_ollama_running():
                 self._append_result("WARNING", "Ollama未起動。要約・翻訳はフォールバックで処理します")
-
-            setup_logging()
             config = load_config(config_path)
-            setup_logging(config.get("logging", {}))
-            LOGGER.info("GUI execution started with config: %s", config_path)
-
             output_config = config.get("output", {})
             exploration_dir = output_config.get("exploration_dir", "")
             monitoring_dir = output_config.get("monitoring_dir", "")
@@ -269,24 +264,112 @@ class SmartCatchGUI:
                 if monitoring_dir
                 else ""
             )
-
-            markdown = run_rss_pipeline(config_path)
-            article_count = len(ARTICLE_HEADING_PATTERN.findall(markdown))
-            self.status_var.set("Status: Success")
-            self._append_result("SUCCESS", "Execution completed successfully.")
-            self._append_result("INFO", f"Exploration output: {self.exploration_path_var.get()}")
-            self._append_result("INFO", f"Monitoring output: {self.monitoring_path_var.get()}")
-            self._append_result("INFO", f"Exploration article count: {article_count}")
-            self._refresh_open_buttons()
-            LOGGER.info("GUI execution completed successfully")
         except Exception as exc:
             self.status_var.set("Status: Failed")
             self._append_result("ERROR", f"Execution failed for config: {config_path}")
             self._append_result("ERROR", str(exc))
             LOGGER.exception("GUI execution failed")
-        finally:
             self._set_running_state(False)
             self.root.update_idletasks()
+            return
+
+        self._set_running_state(True)
+        self._append_result("INFO", "----------------------------------------")
+        self._append_result("INFO", f"Run started: {config_path}")
+        self.root.update_idletasks()
+
+        self._pipeline_thread = threading.Thread(
+            target=self._run_pipeline_worker,
+            args=(config_path,),
+            name="smart-catch-pipeline",
+            daemon=True,
+        )
+        self._pipeline_thread.start()
+        self.root.after(100, self._process_worker_queue)
+
+    def _run_pipeline_worker(self, config_path: str) -> None:
+        try:
+            setup_logging()
+            config = load_config(config_path)
+            setup_logging(config.get("logging", {}))
+            LOGGER.info("GUI execution started with config: %s", config_path)
+
+            result = run_rss_pipeline(
+                config_path,
+                progress_callback=self._publish_progress,
+            )
+            if not isinstance(result, tuple) or len(result) != 2:
+                raise ValueError(
+                    "run_rss_pipeline() must return a 2-item tuple: (markdown, purged_files)"
+                )
+
+            markdown, purged_files = result
+            if not isinstance(markdown, str):
+                raise TypeError("run_rss_pipeline()[0] must be a string markdown")
+            if not isinstance(purged_files, list):
+                raise TypeError("run_rss_pipeline()[1] must be a list of purged files")
+
+            self._worker_queue.put(("success", (markdown, purged_files)))
+        except Exception as exc:
+            error_message = "".join(
+                traceback.format_exception(type(exc), exc, exc.__traceback__)
+            )
+            self._worker_queue.put(("error", error_message))
+
+    def _publish_progress(self, level: str, message: str) -> None:
+        self._worker_queue.put(("progress", (level, message)))
+
+    def _process_worker_queue(self) -> None:
+        keep_polling = True
+
+        while True:
+            try:
+                event_type, payload = self._worker_queue.get_nowait()
+            except queue.Empty:
+                break
+
+            if event_type == "progress":
+                level, message = payload
+                self._append_result(level, message)
+                continue
+
+            if event_type == "success":
+                markdown, purged_files = payload
+                article_count = len(ARTICLE_HEADING_PATTERN.findall(markdown))
+                self.status_var.set("Status: Success")
+                self._append_result("SUCCESS", "Execution completed successfully.")
+                self._append_result(
+                    "INFO", f"Exploration output: {self.exploration_path_var.get()}"
+                )
+                self._append_result(
+                    "INFO", f"Monitoring output: {self.monitoring_path_var.get()}"
+                )
+                self._append_result("INFO", f"Exploration article count: {article_count}")
+                if purged_files:
+                    self._append_result("INFO", f"Purged {len(purged_files)} old file(s):")
+                    for pf in purged_files:
+                        self._append_result("INFO", f"  Purged: {Path(pf).name}")
+                self._refresh_open_buttons()
+                self._set_running_state(False)
+                LOGGER.info("GUI execution completed successfully")
+                keep_polling = False
+                continue
+
+            if event_type == "error":
+                self.status_var.set("Status: Failed")
+                self._append_result(
+                    "ERROR",
+                    f"Execution failed for config: {self.config_path_var.get().strip() or DEFAULT_CONFIG_PATH}",
+                )
+                self._append_result("ERROR", str(payload).strip())
+                LOGGER.error("GUI execution failed:\n%s", payload)
+                self._set_running_state(False)
+                keep_polling = False
+
+        if keep_polling and self._pipeline_thread and self._pipeline_thread.is_alive():
+            self.root.after(100, self._process_worker_queue)
+        elif keep_polling:
+            self._set_running_state(False)
 
     def open_output_file(self, file_path: str) -> None:
         if not file_path:

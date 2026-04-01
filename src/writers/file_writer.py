@@ -1,6 +1,8 @@
 from datetime import date
 from pathlib import Path
 
+from src.utils.file_manager import get_unique_path
+
 
 def save_markdown_file(
     markdown: str, output_dir: str, filename: str = "collected_articles.md"
@@ -28,6 +30,7 @@ def save_markdown_history_file(
     if not isinstance(date_str, str) or not date_str:
         raise ValueError("date_str must be a non-empty string.")
 
-    path = Path(filename)
-    history_filename = f"{path.stem}_{date_str}{path.suffix}"
-    return save_markdown_file(markdown, output_dir, history_filename)
+    base = Path(filename)
+    history_filename = f"{base.stem}_{date_str}{base.suffix}"
+    unique_path = get_unique_path(Path(output_dir) / history_filename)
+    return save_markdown_file(markdown, output_dir, unique_path.name)
