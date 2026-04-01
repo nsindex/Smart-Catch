@@ -31,8 +31,7 @@
 - 指摘2点（URLErrorタイムアウト分岐・サニタイズ漏れ）を修正してからコミット
 
 ## 現在のブランチ
-- `feature/ollama-summary-and-translator-fix`（未マージ）
-- mainへのPRは未作成
+- `main`（PR#5マージ済み）
 
 ## 直近の作業内容（2026-04-01 追記その2）
 
@@ -50,14 +49,29 @@
 - 保存はアトミック書き込み（tmp→rename）、Browse時にキーワードリストを自動再読み込み
 - ウィンドウサイズ 760×560 → 900×600 に変更
 
+## 直近の作業内容（2026-04-01 追記その3）
+
+### RSSソース追加
+- feedparser で取得検証後、3ソースを追加
+  - Google DeepMind Blog（status=200、100件）
+  - Meta AI Research / engineering.fb.com（status=200、9件）※ai.meta.com/blog/feed/ は404のため代替
+  - ITmedia AI（status=200、20件、日本語）
+- Anthropic Blog は公開RSSフィードが確認できないため追加見送り
+
+### キーワード強化
+- `monitoring.keywords` を21件 → 45件に拡充
+  - ツール系13件: Cursor, Copilot, Windsurf, Devin, Bolt, Dify, LangChain, LlamaIndex, Ollama, Perplexity, Gemini, Grok, OpenCLAW
+  - 技術系7件: RAG, fine-tuning, プロンプトエンジニアリング, MCP, エージェント, マルチモーダル, embedding
+  - 人物系4件: Altman, Dario, LeCun, Hinton
+
+### PR・マージ
+- PR#5 `feature/ollama-summary-and-translator-fix` → `main` マージ・ブランチ削除完了
+
 ## 次にやること
-- `python app.py` を実行して今日の変更の動作確認
-- `feature/ollama-summary-and-translator-fix` → `main` へのPR作成・マージ
+- `python app.py` を実行して動作確認
 
 ## 既知の問題
 - Ollama未起動時は要約が定型文にフォールバック（設計上の許容範囲）
-- 翻訳でTERM_MAPが部分一致上書きするため混在が残る
-- 今日の変更後に `app.py` の動作確認が未実施
 
 ## セッション終了: 2026-04-01 18:02
 
