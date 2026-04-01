@@ -270,13 +270,17 @@ class SmartCatchGUI:
                 else ""
             )
 
-            markdown = run_rss_pipeline(config_path)
+            markdown, purged_files = run_rss_pipeline(config_path)
             article_count = len(ARTICLE_HEADING_PATTERN.findall(markdown))
             self.status_var.set("Status: Success")
             self._append_result("SUCCESS", "Execution completed successfully.")
             self._append_result("INFO", f"Exploration output: {self.exploration_path_var.get()}")
             self._append_result("INFO", f"Monitoring output: {self.monitoring_path_var.get()}")
             self._append_result("INFO", f"Exploration article count: {article_count}")
+            if purged_files:
+                self._append_result("INFO", f"Purged {len(purged_files)} old file(s):")
+                for pf in purged_files:
+                    self._append_result("INFO", f"  Purged: {Path(pf).name}")
             self._refresh_open_buttons()
             LOGGER.info("GUI execution completed successfully")
         except Exception as exc:

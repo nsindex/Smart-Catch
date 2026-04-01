@@ -12,6 +12,7 @@ from src.summarizers.summary_generator import generate_missing_summaries
 from src.topic_extractors.topic_extractor import assign_topics
 from src.topic_summarizers.topic_summarizer import summarize_topics
 from src.translators.markdown_translator import translate_markdown_to_japanese
+from src.utils.file_manager import purge_old_files
 from src.writers.file_writer import save_markdown_file, save_markdown_history_file
 from src.writers.markdown_writer import build_markdown
 
@@ -19,7 +20,7 @@ from src.writers.markdown_writer import build_markdown
 LOGGER = logging.getLogger(__name__)
 
 
-def run_rss_pipeline(config_path: str = "config/config.json") -> str:
+def run_rss_pipeline(config_path: str = "config/config.json") -> tuple[str, list[str]]:
     LOGGER.info("Pipeline started")
 
     try:
@@ -36,6 +37,17 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
         deduplication_mode = deduplication_config.get("mode", "url_only")
         output_config = config.get("output", {})
         save_history = output_config.get("save_history", False)
+
+        exploration_dir = output_config.get("exploration_dir", "output/exploration")
+        monitoring_dir = config["output"]["monitoring_dir"]
+        monitoring_archive_dir = str(Path(monitoring_dir) / "archive")
+
+        purged_files: list[str] = []
+        purged_files.extend(purge_old_files(exploration_dir, days_old=3))
+        purged_files.extend(purge_old_files(monitoring_archive_dir, days_old=3))
+        purged_files.extend(purge_old_files(monitoring_dir, days_old=7))
+        LOGGER.info("Purge completed: %s file(s) removed", len(purged_files))
+
         all_fetched_entries = []
 
         for rss_config in rss_configs:
@@ -160,9 +172,6 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
         monitoring_markdown = build_markdown(monitoring_articles)
         LOGGER.info("Markdown generation completed")
 
-        monitoring_dir = config["output"]["monitoring_dir"]
-        monitoring_archive_dir = str(Path(monitoring_dir) / "archive")
-
         exploration_path = save_markdown_file(
             exploration_markdown,
             config["output"]["exploration_dir"],
@@ -225,7 +234,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
 
         LOGGER.info("Pipeline completed")
 
-        return exploration_markdown
+        return exploration_markdown, purged_files
     except Exception:
         LOGGER.exception("Pipeline failed")
         raise
