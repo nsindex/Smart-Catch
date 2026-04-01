@@ -33,6 +33,7 @@ class SmartCatchGUI:
         self._build_notebook()
         self._append_result("INFO", "Smart-Catch local GUI is ready.")
         self._load_keywords()
+        self.root.after(100, self._check_ollama_on_startup)
 
     def _build_notebook(self) -> None:
         self.root.columnconfigure(0, weight=1)
@@ -148,6 +149,20 @@ class SmartCatchGUI:
             state=tk.NORMAL if selected else tk.DISABLED
         )
 
+    def _check_ollama_on_startup(self) -> None:
+        from src.utils.ollama_health import ensure_ollama_running, is_ollama_running
+
+        if is_ollama_running():
+            self._append_result("INFO", "Ollama: 起動確認済み")
+            return
+
+        self._append_result("WARNING", "Ollama未起動。自動起動を試みています...")
+        success = ensure_ollama_running()
+        if success:
+            self._append_result("INFO", "Ollama: 自動起動成功")
+        else:
+            self._append_result("WARNING", "Ollama起動失敗。要約・翻訳はフォールバックになります")
+
     def _load_keywords(self) -> None:
         self.keyword_listbox.delete(0, tk.END)
         config_path = Path(self.config_path_var.get())
@@ -229,6 +244,12 @@ class SmartCatchGUI:
                 raise FileNotFoundError(f"Config file not found: {config_path}")
             if not config_file.is_file():
                 raise FileNotFoundError(f"Config path is not a file: {config_path}")
+
+            # Run時チェック：起動時の自動起動とは別に状態を確認してWARNINGを出す
+            # （自動起動は起動時に試み済みのため、ここでは is_running チェックのみ）
+            from src.utils.ollama_health import is_ollama_running
+            if not is_ollama_running():
+                self._append_result("WARNING", "Ollama未起動。要約・翻訳はフォールバックで処理します")
 
             setup_logging()
             config = load_config(config_path)
