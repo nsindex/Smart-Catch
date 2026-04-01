@@ -163,6 +163,17 @@ Status: DONE
 
 ---
 
+### T38 セキュリティ修正 4件
+Status: DONE
+
+目的
+・RSS URLのスキーム・ホスト制限（http/https のみ・localhost/プライベートIP拒否）
+・出力ディレクトリのパストラバーサル防止（output/ 配下への書き込みを強制）
+・ファイル書き込みのアトミック化（write_text → tempfile + replace）
+・Ollama プロンプトへの入力サニタイズ（制御文字除去・長さ制限・インジェクション対策）
+
+---
+
 ## 5. 保留タスク（BACKLOG）
 
 なし
