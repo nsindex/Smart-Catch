@@ -245,6 +245,12 @@ class SmartCatchGUI:
             if not config_file.is_file():
                 raise FileNotFoundError(f"Config path is not a file: {config_path}")
 
+            # Run時チェック：起動時の自動起動とは別に状態を確認してWARNINGを出す
+            # （自動起動は起動時に試み済みのため、ここでは is_running チェックのみ）
+            from src.utils.ollama_health import is_ollama_running
+            if not is_ollama_running():
+                self._append_result("WARNING", "Ollama未起動。要約・翻訳はフォールバックで処理します")
+
             setup_logging()
             config = load_config(config_path)
             setup_logging(config.get("logging", {}))
