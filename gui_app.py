@@ -50,34 +50,34 @@ class SmartCatchGUI:
         self._build_main_tab(main_frame)
         self._build_keyword_tab(keyword_frame)
 
-    def _build_widgets(self) -> None:
-        self.root.columnconfigure(1, weight=1)
-        self.root.rowconfigure(4, weight=1)
+    def _build_main_tab(self, frame: tk.Frame) -> None:
+        frame.columnconfigure(1, weight=1)
+        frame.rowconfigure(4, weight=1)
 
-        tk.Label(self.root, text="Config Path").grid(
+        tk.Label(frame, text="Config Path").grid(
             row=0, column=0, padx=12, pady=12, sticky="w"
         )
-        tk.Entry(self.root, textvariable=self.config_path_var).grid(
+        tk.Entry(frame, textvariable=self.config_path_var).grid(
             row=0, column=1, padx=12, pady=12, sticky="ew"
         )
-        tk.Button(self.root, text="Browse", command=self.browse_config).grid(
+        tk.Button(frame, text="Browse", command=self.browse_config).grid(
             row=0, column=2, padx=12, pady=12, sticky="ew"
         )
 
-        self.run_button = tk.Button(self.root, text="Run", command=self.run_pipeline)
+        self.run_button = tk.Button(frame, text="Run", command=self.run_pipeline)
         self.run_button.grid(row=1, column=0, padx=12, pady=4, sticky="ew")
-        tk.Label(self.root, textvariable=self.status_var, anchor="w").grid(
+        tk.Label(frame, textvariable=self.status_var, anchor="w").grid(
             row=1, column=1, columnspan=2, padx=12, pady=4, sticky="ew"
         )
 
-        tk.Label(self.root, text="Exploration Output").grid(
+        tk.Label(frame, text="Exploration Output").grid(
             row=2, column=0, padx=12, pady=4, sticky="w"
         )
-        tk.Label(self.root, textvariable=self.exploration_path_var, anchor="w").grid(
+        tk.Label(frame, textvariable=self.exploration_path_var, anchor="w").grid(
             row=2, column=1, padx=12, pady=4, sticky="ew"
         )
         self.open_exploration_button = tk.Button(
-            self.root,
+            frame,
             text="Open",
             command=lambda: self.open_output_file(self.exploration_path_var.get()),
             state=tk.DISABLED,
@@ -86,14 +86,14 @@ class SmartCatchGUI:
             row=2, column=2, padx=12, pady=4, sticky="ew"
         )
 
-        tk.Label(self.root, text="Monitoring Output").grid(
+        tk.Label(frame, text="Monitoring Output").grid(
             row=3, column=0, padx=12, pady=4, sticky="w"
         )
-        tk.Label(self.root, textvariable=self.monitoring_path_var, anchor="w").grid(
+        tk.Label(frame, textvariable=self.monitoring_path_var, anchor="w").grid(
             row=3, column=1, padx=12, pady=4, sticky="ew"
         )
         self.open_monitoring_button = tk.Button(
-            self.root,
+            frame,
             text="Open",
             command=lambda: self.open_output_file(self.monitoring_path_var.get()),
             state=tk.DISABLED,
@@ -102,7 +102,7 @@ class SmartCatchGUI:
             row=3, column=2, padx=12, pady=4, sticky="ew"
         )
 
-        self.result_text = scrolledtext.ScrolledText(self.root, wrap=tk.WORD)
+        self.result_text = scrolledtext.ScrolledText(frame, wrap=tk.WORD)
         self.result_text.grid(
             row=4, column=0, columnspan=3, padx=12, pady=12, sticky="nsew"
         )
