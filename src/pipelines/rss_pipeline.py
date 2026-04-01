@@ -86,6 +86,23 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
             matched_count,
         )
 
+        source_min_scores = {
+            cfg.get("name", cfg.get("url", "unknown")): cfg["min_score"]
+            for cfg in rss_configs
+            if "min_score" in cfg
+        }
+        if source_min_scores:
+            before_filter = len(classified_entries)
+            classified_entries = [
+                a for a in classified_entries
+                if a.get("score", 0) >= source_min_scores.get(a.get("source", ""), 0)
+            ]
+            LOGGER.info(
+                "Min score filtering: before=%s after=%s",
+                before_filter,
+                len(classified_entries),
+            )
+
         dedup_before_count = len(classified_entries)
         classified_entries = deduplicate_articles(
             classified_entries,

@@ -1,4 +1,72 @@
+import json
+import urllib.error
+import urllib.request
 from typing import Any
+
+_OLLAMA_API_URL = "http://localhost:11434/api/generate"
+_OLLAMA_MODEL = "gemma3n:e4b"
+_OLLAMA_TIMEOUT_SECONDS = 12
+
+
+def _is_safe_summary(text: str) -> bool:
+    if not isinstance(text, str):
+        return False
+    stripped = " ".join(text.split())
+    if not stripped or len(stripped) > 240:
+        return False
+    if any(token in stripped for token in ("```", "---", "#", "\n", "\r")):
+        return False
+    return True
+
+
+def _build_ollama_summary_prompt(title: str, source_name: str) -> str:
+    return (
+        f"The following is an article title from {source_name}.\n"
+        "Write a one-sentence summary in English describing what this article is likely about.\n"
+        "Output only the summary sentence, nothing else.\n\n"
+        f"Title: {title}"
+    )
+
+
+def _generate_summary_with_ollama(title: str, source_name: str) -> str | None:
+    if not title:
+        return None
+
+    prompt = _build_ollama_summary_prompt(title, source_name)
+    payload = {
+        "model": _OLLAMA_MODEL,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0,
+            "stop": ["\n\n", "---", "```"],
+        },
+    }
+    request = urllib.request.Request(
+        _OLLAMA_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=_OLLAMA_TIMEOUT_SECONDS) as response:
+            response_data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.URLError:
+        # Ollama未起動・接続不可の場合はフォールバックへ
+        return None
+    except (TimeoutError, ValueError, OSError):
+        return None
+
+    result = response_data.get("response")
+    if not isinstance(result, str) or not result.strip():
+        return None
+
+    result = result.strip()
+    if not _is_safe_summary(result):
+        return None
+
+    return result
 
 
 def _build_local_summary(entry: dict[str, Any]) -> str:
@@ -17,6 +85,12 @@ def _build_local_summary(entry: dict[str, Any]) -> str:
                     if term:
                         tag_terms.append(term)
 
+    # Ollamaで要約生成を試みる
+    ollama_summary = _generate_summary_with_ollama(title, source_name)
+    if ollama_summary:
+        return ollama_summary
+
+    # Ollama失敗時はテンプレート文字列にフォールバック
     summary_parts = []
 
     if title:

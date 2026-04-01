@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -6,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
 from tkinter import scrolledtext
+from tkinter import ttk
 
 from src.config_loader import load_config
 from src.logging_config import setup_logging
@@ -21,44 +23,61 @@ class SmartCatchGUI:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Smart-Catch")
-        self.root.geometry("760x560")
+        self.root.geometry("900x600")
 
         self.config_path_var = tk.StringVar(value=DEFAULT_CONFIG_PATH)
         self.exploration_path_var = tk.StringVar(value="")
         self.monitoring_path_var = tk.StringVar(value="")
         self.status_var = tk.StringVar(value="Status: Ready")
 
-        self._build_widgets()
+        self._build_notebook()
         self._append_result("INFO", "Smart-Catch local GUI is ready.")
+        self._load_keywords()
 
-    def _build_widgets(self) -> None:
-        self.root.columnconfigure(1, weight=1)
-        self.root.rowconfigure(4, weight=1)
+    def _build_notebook(self) -> None:
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
 
-        tk.Label(self.root, text="Config Path").grid(
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+
+        main_frame = tk.Frame(self.notebook)
+        self.notebook.add(main_frame, text="メイン")
+
+        keyword_frame = tk.Frame(self.notebook)
+        self.notebook.add(keyword_frame, text="キーワード管理")
+
+        self._build_main_tab(main_frame)
+        self._build_keyword_tab(keyword_frame)
+
+    def _build_main_tab(self, frame: tk.Frame) -> None:
+        frame.columnconfigure(1, weight=1)
+        frame.rowconfigure(4, weight=1)
+
+        tk.Label(frame, text="Config Path").grid(
             row=0, column=0, padx=12, pady=12, sticky="w"
         )
-        tk.Entry(self.root, textvariable=self.config_path_var).grid(
+        tk.Entry(frame, textvariable=self.config_path_var).grid(
             row=0, column=1, padx=12, pady=12, sticky="ew"
         )
-        tk.Button(self.root, text="Browse", command=self.browse_config).grid(
+        tk.Button(frame, text="Browse", command=self.browse_config).grid(
             row=0, column=2, padx=12, pady=12, sticky="ew"
         )
 
-        self.run_button = tk.Button(self.root, text="Run", command=self.run_pipeline)
+        self.run_button = tk.Button(frame, text="Run", command=self.run_pipeline)
         self.run_button.grid(row=1, column=0, padx=12, pady=4, sticky="ew")
-        tk.Label(self.root, textvariable=self.status_var, anchor="w").grid(
+        tk.Label(frame, textvariable=self.status_var, anchor="w").grid(
             row=1, column=1, columnspan=2, padx=12, pady=4, sticky="ew"
         )
 
-        tk.Label(self.root, text="Exploration Output").grid(
+        tk.Label(frame, text="Exploration Output").grid(
             row=2, column=0, padx=12, pady=4, sticky="w"
         )
-        tk.Label(self.root, textvariable=self.exploration_path_var, anchor="w").grid(
+        tk.Label(frame, textvariable=self.exploration_path_var, anchor="w").grid(
             row=2, column=1, padx=12, pady=4, sticky="ew"
         )
         self.open_exploration_button = tk.Button(
-            self.root,
+            frame,
             text="Open",
             command=lambda: self.open_output_file(self.exploration_path_var.get()),
             state=tk.DISABLED,
@@ -67,14 +86,14 @@ class SmartCatchGUI:
             row=2, column=2, padx=12, pady=4, sticky="ew"
         )
 
-        tk.Label(self.root, text="Monitoring Output").grid(
+        tk.Label(frame, text="Monitoring Output").grid(
             row=3, column=0, padx=12, pady=4, sticky="w"
         )
-        tk.Label(self.root, textvariable=self.monitoring_path_var, anchor="w").grid(
+        tk.Label(frame, textvariable=self.monitoring_path_var, anchor="w").grid(
             row=3, column=1, padx=12, pady=4, sticky="ew"
         )
         self.open_monitoring_button = tk.Button(
-            self.root,
+            frame,
             text="Open",
             command=lambda: self.open_output_file(self.monitoring_path_var.get()),
             state=tk.DISABLED,
@@ -83,11 +102,108 @@ class SmartCatchGUI:
             row=3, column=2, padx=12, pady=4, sticky="ew"
         )
 
-        self.result_text = scrolledtext.ScrolledText(self.root, wrap=tk.WORD)
+        self.result_text = scrolledtext.ScrolledText(frame, wrap=tk.WORD)
         self.result_text.grid(
             row=4, column=0, columnspan=3, padx=12, pady=12, sticky="nsew"
         )
         self.result_text.configure(state=tk.DISABLED)
+
+    def _build_keyword_tab(self, frame: tk.Frame) -> None:
+        frame.columnconfigure(1, weight=1)
+        frame.rowconfigure(0, weight=1)
+
+        # --- Listbox + Scrollbar ---
+        list_frame = tk.Frame(frame)
+        list_frame.grid(row=0, column=0, columnspan=3, padx=12, pady=12, sticky="nsew")
+        list_frame.columnconfigure(0, weight=1)
+        list_frame.rowconfigure(0, weight=1)
+
+        self.keyword_listbox = tk.Listbox(list_frame, selectmode=tk.SINGLE)
+        self.keyword_listbox.grid(row=0, column=0, sticky="nsew")
+        scrollbar = tk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.keyword_listbox.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.keyword_listbox.configure(yscrollcommand=scrollbar.set)
+        self.keyword_listbox.bind("<<ListboxSelect>>", self._on_keyword_select)
+
+        # --- 追加エリア ---
+        tk.Label(frame, text="追加:").grid(row=1, column=0, padx=12, pady=4, sticky="w")
+        self.keyword_entry = tk.Entry(frame)
+        self.keyword_entry.grid(row=1, column=1, padx=4, pady=4, sticky="ew")
+        tk.Button(frame, text="追加", command=self._add_keyword).grid(
+            row=1, column=2, padx=12, pady=4, sticky="ew"
+        )
+
+        # --- 削除・保存ボタン ---
+        self.delete_keyword_button = tk.Button(
+            frame, text="選択したキーワードを削除", command=self._delete_keyword, state=tk.DISABLED
+        )
+        self.delete_keyword_button.grid(row=2, column=0, columnspan=2, padx=12, pady=8, sticky="ew")
+        tk.Button(frame, text="保存", command=self._save_keywords).grid(
+            row=2, column=2, padx=12, pady=8, sticky="ew"
+        )
+
+    def _on_keyword_select(self, event: tk.Event) -> None:
+        selected = self.keyword_listbox.curselection()
+        self.delete_keyword_button.configure(
+            state=tk.NORMAL if selected else tk.DISABLED
+        )
+
+    def _load_keywords(self) -> None:
+        self.keyword_listbox.delete(0, tk.END)
+        config_path = Path(self.config_path_var.get())
+        if not config_path.exists():
+            self._append_result("ERROR", f"キーワード読み込み失敗: ファイルが見つかりません: {config_path}")
+            return
+        try:
+            with config_path.open(encoding="utf-8") as f:
+                config = json.load(f)
+            keywords = config.get("monitoring", {}).get("keywords")
+            if keywords is None:
+                self._append_result("ERROR", "キーワード読み込み失敗: monitoring.keywords キーが見つかりません")
+                return
+            for kw in keywords:
+                self.keyword_listbox.insert(tk.END, kw)
+        except Exception as exc:
+            self._append_result("ERROR", f"キーワード読み込み失敗: {exc}")
+
+    def _add_keyword(self) -> None:
+        keyword = self.keyword_entry.get().strip()
+        if not keyword:
+            return
+        existing = list(self.keyword_listbox.get(0, tk.END))
+        if keyword in existing:
+            return
+        self.keyword_listbox.insert(tk.END, keyword)
+        self.keyword_entry.delete(0, tk.END)
+
+    def _delete_keyword(self) -> None:
+        selected = self.keyword_listbox.curselection()
+        if not selected:
+            return
+        self.keyword_listbox.delete(selected[0])
+        self.delete_keyword_button.configure(state=tk.DISABLED)
+
+    def _save_keywords(self) -> None:
+        config_path = Path(self.config_path_var.get())
+        tmp_path = config_path.with_suffix(".tmp")
+        try:
+            with config_path.open(encoding="utf-8") as f:
+                config = json.load(f)
+            keywords = list(self.keyword_listbox.get(0, tk.END))
+            config.setdefault("monitoring", {})["keywords"] = keywords
+            tmp_path.write_text(
+                json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            tmp_path.replace(config_path)
+            self._append_result("INFO", f"キーワードを保存しました ({len(keywords)} 件): {config_path}")
+        except Exception as exc:
+            self._append_result("ERROR", f"キーワード保存失敗: {exc}")
+        finally:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
 
     def browse_config(self) -> None:
         selected_path = filedialog.askopenfilename(
@@ -98,6 +214,7 @@ class SmartCatchGUI:
         if selected_path:
             self.config_path_var.set(selected_path)
             self._append_result("INFO", f"Config path selected: {selected_path}")
+            self._load_keywords()
 
     def run_pipeline(self) -> None:
         config_path = self.config_path_var.get().strip() or DEFAULT_CONFIG_PATH

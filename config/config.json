@@ -16,6 +16,17 @@
         "name": "OpenAI Blog",
         "url": "https://openai.com/blog/rss.xml",
         "max_items": 10
+      },
+      {
+        "name": "Zenn",
+        "url": "https://zenn.dev/feed",
+        "max_items": 10
+      },
+      {
+        "name": "Qiita",
+        "url": "https://qiita.com/popular-items/feed",
+        "max_items": 10,
+        "min_score": 3
       }
     ],
     "web": [],

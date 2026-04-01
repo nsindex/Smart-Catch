@@ -106,7 +106,7 @@ def _translate_text_to_japanese(text: str) -> str:
 
     translated_text = text
 
-    for source_text, target_text in PHRASE_MAP:
+    for source_text, target_text in sorted(PHRASE_MAP, key=lambda x: len(x[0]), reverse=True):
         translated_text = re.sub(
             re.escape(source_text),
             target_text,
@@ -199,6 +199,10 @@ def _translate_text_with_ollama(text: str, content_type: str = "general") -> str
         "model": DEFAULT_TRANSLATION_MODEL,
         "prompt": prompt,
         "stream": False,
+        "options": {
+            "temperature": 0,
+            "stop": ["\n\n", "---", "```"],
+        },
     }
     request = urllib.request.Request(
         OLLAMA_API_URL,
@@ -210,7 +214,14 @@ def _translate_text_with_ollama(text: str, content_type: str = "general") -> str
     try:
         with urllib.request.urlopen(request, timeout=OLLAMA_TIMEOUT_SECONDS) as response:
             response_data = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, ValueError, OSError):
+    except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", None)
+        if isinstance(reason, (TimeoutError, OSError)) and not isinstance(reason, ConnectionRefusedError):
+            # タイムアウト等の一時的エラーはキャッシュして再試行を抑制
+            _TRANSLATION_CACHE[cache_key] = None
+        # 接続拒否（Ollama未起動）はキャッシュしない（起動後に再試行できるよう）
+        return None
+    except (TimeoutError, ValueError, OSError):
         _TRANSLATION_CACHE[cache_key] = None
         return None
 
