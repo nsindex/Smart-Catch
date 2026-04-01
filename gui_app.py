@@ -265,7 +265,7 @@ class SmartCatchGUI:
                 else ""
             )
             self.monitoring_path_var.set(
-                str(Path(monitoring_dir) / "monitored_articles.md")
+                str(Path(monitoring_dir) / "archive" / "monitored_articles.md")
                 if monitoring_dir
                 else ""
             )
