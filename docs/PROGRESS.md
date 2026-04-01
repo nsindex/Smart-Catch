@@ -34,9 +34,16 @@
 - `feature/ollama-summary-and-translator-fix`（未マージ）
 - mainへのPRは未作成
 
+## 直近の作業内容（2026-04-01 追記）
+
+### GUIキーワード管理タブ追加
+- `gui_app.py`：`ttk.Notebook` を導入し「メイン」「キーワード管理」2タブ構成に変更
+- キーワード管理タブ：`monitoring.keywords` の表示・追加・削除・保存機能を実装
+- 保存はアトミック書き込み（tmp→rename）、Browse時にキーワードリストを自動再読み込み
+- ウィンドウサイズ 760×560 → 900×600 に変更
+
 ## 次にやること
 - `python app.py` を実行して今日の変更の動作確認
-- GUIにキーワード管理タブを追加
 - Qiitaノイズ対策（min_score設定）
 - 翻訳混在の軽微な修正（TERM_MAP処理順）
 - `feature/ollama-summary-and-translator-fix` → `main` へのPR作成
@@ -49,3 +56,5 @@
 ## セッション終了: 2026-04-01 18:02
 
 セッション終了: 2026-04-01 18:04
+
+セッション終了: 2026-04-01 18:05
