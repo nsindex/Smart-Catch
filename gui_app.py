@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -6,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
 from tkinter import scrolledtext
+from tkinter import ttk
 
 from src.config_loader import load_config
 from src.logging_config import setup_logging
@@ -21,15 +23,32 @@ class SmartCatchGUI:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("Smart-Catch")
-        self.root.geometry("760x560")
+        self.root.geometry("900x600")
 
         self.config_path_var = tk.StringVar(value=DEFAULT_CONFIG_PATH)
         self.exploration_path_var = tk.StringVar(value="")
         self.monitoring_path_var = tk.StringVar(value="")
         self.status_var = tk.StringVar(value="Status: Ready")
 
-        self._build_widgets()
+        self._build_notebook()
         self._append_result("INFO", "Smart-Catch local GUI is ready.")
+        self._load_keywords()
+
+    def _build_notebook(self) -> None:
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+
+        main_frame = tk.Frame(self.notebook)
+        self.notebook.add(main_frame, text="メイン")
+
+        keyword_frame = tk.Frame(self.notebook)
+        self.notebook.add(keyword_frame, text="キーワード管理")
+
+        self._build_main_tab(main_frame)
+        self._build_keyword_tab(keyword_frame)
 
     def _build_widgets(self) -> None:
         self.root.columnconfigure(1, weight=1)
