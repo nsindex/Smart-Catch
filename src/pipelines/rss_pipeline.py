@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from src.action_generators.action_generator import build_action_suggestions
 from src.classifiers.keyword_classifier import classify_entries
@@ -159,13 +160,16 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
         monitoring_markdown = build_markdown(monitoring_articles)
         LOGGER.info("Markdown generation completed")
 
+        monitoring_dir = config["output"]["monitoring_dir"]
+        monitoring_archive_dir = str(Path(monitoring_dir) / "archive")
+
         exploration_path = save_markdown_file(
             exploration_markdown,
             config["output"]["exploration_dir"],
         )
         monitoring_path = save_markdown_file(
             monitoring_markdown,
-            config["output"]["monitoring_dir"],
+            monitoring_archive_dir,
             "monitored_articles.md",
         )
         LOGGER.info("Exploration markdown saved: %s", exploration_path)
@@ -187,7 +191,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
         )
         monitoring_ja_path = save_markdown_file(
             monitoring_markdown_ja,
-            config["output"]["monitoring_dir"],
+            monitoring_archive_dir,
             "monitored_articles_ja.md",
         )
         LOGGER.info("Exploration Japanese markdown saved: %s", exploration_ja_path)
@@ -201,7 +205,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
             )
             monitoring_history_path = save_markdown_history_file(
                 monitoring_markdown,
-                config["output"]["monitoring_dir"],
+                monitoring_archive_dir,
                 "monitored_articles.md",
             )
             exploration_history_ja_path = save_markdown_history_file(
@@ -211,7 +215,7 @@ def run_rss_pipeline(config_path: str = "config/config.json") -> str:
             )
             monitoring_history_ja_path = save_markdown_history_file(
                 monitoring_markdown_ja,
-                config["output"]["monitoring_dir"],
+                monitoring_dir,
                 "monitored_articles_ja.md",
             )
             LOGGER.info("Exploration history markdown saved: %s", exploration_history_path)
