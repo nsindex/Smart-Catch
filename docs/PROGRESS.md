@@ -34,6 +34,14 @@
 - `feature/ollama-summary-and-translator-fix`（未マージ）
 - mainへのPRは未作成
 
+## 直近の作業内容（2026-04-01 追記その2）
+
+### Ollama起動検知・自動起動
+- `src/utils/ollama_health.py` を新規作成（`is_ollama_running()` / `ensure_ollama_running()`）
+- `gui_app.py`：起動時に `root.after(100, ...)` でOllamaチェック・自動起動を試みる
+- `gui_app.py`：Run実行前に `is_ollama_running()` をチェックし、未起動ならWARNING表示
+- 既存フォールバック（定型文）は維持
+
 ## 直近の作業内容（2026-04-01 追記）
 
 ### GUIキーワード管理タブ追加
@@ -44,9 +52,7 @@
 
 ## 次にやること
 - `python app.py` を実行して今日の変更の動作確認
-- Qiitaノイズ対策（min_score設定）
-- 翻訳混在の軽微な修正（TERM_MAP処理順）
-- `feature/ollama-summary-and-translator-fix` → `main` へのPR作成
+- `feature/ollama-summary-and-translator-fix` → `main` へのPR作成・マージ
 
 ## 既知の問題
 - Ollama未起動時は要約が定型文にフォールバック（設計上の許容範囲）
