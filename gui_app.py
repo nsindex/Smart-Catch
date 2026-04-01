@@ -33,6 +33,7 @@ class SmartCatchGUI:
         self._build_notebook()
         self._append_result("INFO", "Smart-Catch local GUI is ready.")
         self._load_keywords()
+        self.root.after(100, self._check_ollama_on_startup)
 
     def _build_notebook(self) -> None:
         self.root.columnconfigure(0, weight=1)
@@ -147,6 +148,20 @@ class SmartCatchGUI:
         self.delete_keyword_button.configure(
             state=tk.NORMAL if selected else tk.DISABLED
         )
+
+    def _check_ollama_on_startup(self) -> None:
+        from src.utils.ollama_health import ensure_ollama_running, is_ollama_running
+
+        if is_ollama_running():
+            self._append_result("INFO", "Ollama: 起動確認済み")
+            return
+
+        self._append_result("WARNING", "Ollama未起動。自動起動を試みています...")
+        success = ensure_ollama_running()
+        if success:
+            self._append_result("INFO", "Ollama: 自動起動成功")
+        else:
+            self._append_result("WARNING", "Ollama起動失敗。要約・翻訳はフォールバックになります")
 
     def _load_keywords(self) -> None:
         self.keyword_listbox.delete(0, tk.END)
