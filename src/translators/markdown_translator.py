@@ -1,9 +1,13 @@
 import json
 import logging
+import os
 import re
+import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+from src.utils.llm_sanitizer import sanitize_llm_input
 
 LOGGER = logging.getLogger(__name__)
 
@@ -119,10 +123,21 @@ def _load_translation_cache() -> dict:
 def _save_translation_cache(cache: dict) -> None:
     try:
         _CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _CACHE_FILE.write_text(
-            json.dumps(cache, ensure_ascii=False, indent=None, separators=(",", ":")),
-            encoding="utf-8",
+        content = json.dumps(cache, ensure_ascii=False, indent=None, separators=(",", ":"))
+        fd, tmp_name = tempfile.mkstemp(
+            dir=_CACHE_FILE.parent, prefix=_CACHE_FILE.name, suffix=".tmp"
         )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            Path(tmp_name).replace(_CACHE_FILE)
+        except Exception:
+            tmp = Path(tmp_name)
+            if tmp.exists():
+                tmp.unlink(missing_ok=True)
+            raise
     except Exception as exc:
         LOGGER.warning("Failed to save translation cache: %s", exc)
 
@@ -181,16 +196,18 @@ def _looks_like_markdown_safe_translation(source_text: str, translated_text: str
 
 
 def _build_translation_prompt(text: str) -> str:
+    safe_text = sanitize_llm_input(text, limit=2000)
     return (
         "次の英語テキストを、自然で読みやすい日本語に翻訳してください。\n"
         "Markdown 記法、URL、topic_001 のような ID、数値は維持してください。\n"
         "余計な説明や前置きは書かず、翻訳後の本文だけを返してください。\n"
         "固有名詞は無理に訳さず原文維持で構いません。\n\n"
-        f"{text}"
+        f"{safe_text}"
     )
 
 
 def _build_title_translation_prompt(text: str) -> str:
+    safe_text = sanitize_llm_input(text, limit=300)
     return (
         "次の英語テキストは記事タイトルです。\n"
         "日本語の見出しとして自然な表現に翻訳してください。\n"
@@ -199,7 +216,7 @@ def _build_title_translation_prompt(text: str) -> str:
         "入力にない URL、topic_001 のような ID、角括弧付き補足、説明文は追加しないでください。\n"
         "数値や固有名詞は必要に応じて維持してください。\n"
         "余計な説明、前置き、引用符は不要です。翻訳結果だけを返してください。\n\n"
-        f"{text}"
+        f"{safe_text}"
     )
 
 

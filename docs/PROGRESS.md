@@ -3,6 +3,27 @@
 ## 現在の状況
 👉 現在のフェーズ：安定運用中
 
+## 直近の作業内容（2026-04-02）
+
+### セキュリティ修正 4件（feature/security-fixes）
+
+- `src/fetchers/rss_fetcher.py`：`validate_rss_url()` 追加（http/https のみ許可・localhost/プライベートIP拒否）
+- `src/utils/file_manager.py`：`resolve_safe_output_dir()` 追加（output/ 配下への書き込みを強制）・`purge_old_files()` に適用
+- `src/writers/file_writer.py`：`atomic_write_text()` 追加・全 write_text をアトミック書き込みに置換・パストラバーサル防止
+- `src/translators/markdown_translator.py`：翻訳キャッシュ保存をアトミック化・Ollama プロンプトへサニタイズ適用
+- `src/summarizers/summary_generator.py`：Ollama プロンプトへサニタイズ適用
+- `src/utils/llm_sanitizer.py`：新規作成（`sanitize_llm_input()` — 制御文字除去・長さ制限・プロンプトインジェクション対策）
+- Codex レビューで発見したパス二重化バグ（`output/output/exploration`）を修正
+- `tests/` ディレクトリ新設・27件のテストをすべて PASS
+
+## 次にやること
+- feature/security-fixes を main にマージする（PR作成）
+
+## 現在のブランチ
+- `feature/security-fixes`（main へのマージ待ち）
+
+---
+
 ## 直近の作業内容（2026-04-01）
 
 ### 翻訳・要約改善

@@ -3,6 +3,8 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from src.utils.llm_sanitizer import sanitize_llm_input
+
 _OLLAMA_API_URL = "http://localhost:11434/api/generate"
 _OLLAMA_MODEL = "gemma3n:e4b"
 _OLLAMA_TIMEOUT_SECONDS = 12
@@ -20,11 +22,13 @@ def _is_safe_summary(text: str) -> bool:
 
 
 def _build_ollama_summary_prompt(title: str, source_name: str) -> str:
+    safe_title = sanitize_llm_input(title, limit=300)
+    safe_source = sanitize_llm_input(source_name, limit=100)
     return (
-        f"The following is an article title from {source_name}.\n"
+        f"The following is an article title from {safe_source}.\n"
         "Write a one-sentence summary in English describing what this article is likely about.\n"
         "Output only the summary sentence, nothing else.\n\n"
-        f"Title: {title}"
+        f"Title: {safe_title}"
     )
 
 
