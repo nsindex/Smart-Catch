@@ -13,15 +13,22 @@ def resolve_safe_output_dir(user_value: str, output_root: Path | None = None) ->
 
     Args:
         user_value: config.json から受け取ったディレクトリ指定文字列。
+                    本番では "output/exploration" のような CWD 相対パスを想定。
         output_root: テスト用オーバーライド。None のとき _OUTPUT_ROOT を使用。
+                     指定時は user_value を output_root からの相対パスとして解決する。
     """
     root = output_root.resolve() if output_root is not None else _OUTPUT_ROOT
     candidate_path = Path(user_value)
 
     if candidate_path.is_absolute():
         resolved = candidate_path.resolve()
-    else:
+    elif output_root is not None:
+        # テスト用: output_root からの相対パスとして解決
         resolved = (root / user_value).resolve()
+    else:
+        # 本番: CWD からの相対パスとして解決
+        # config.json の値は "output/exploration" のような CWD 相対パス
+        resolved = candidate_path.resolve()
 
     if root != resolved and root not in resolved.parents:
         raise ValueError(
