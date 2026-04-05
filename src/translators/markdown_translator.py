@@ -304,19 +304,34 @@ def _translate_content_with_fallback(text: str, content_type: str = "general") -
     return text
 
 
-def _translate_keyword_list(text: str) -> str:
-    parts = [part.strip() for part in text.split(",")]
-    translated_parts = [_translate_text_to_japanese(part) for part in parts if part]
+def _translate_keyword_list(text: str, use_ollama: bool = False) -> str:
+    parts = [part.strip() for part in text.split(",") if part.strip()]
+    translated_parts = []
+    seen: set[str] = set()
+
+    for part in parts:
+        translated = (
+            _translate_content_with_fallback(part)
+            if use_ollama
+            else _translate_text_to_japanese(part)
+        )
+        # 翻訳後の日本語重複を除去（空白・記号を除いた形で比較）
+        dedupe_key = re.sub(r"\s+", "", translated.strip())
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        translated_parts.append(translated)
+
     return ", ".join(translated_parts)
 
 
-def _translate_label_line(line: str) -> str:
+def _translate_label_line(line: str, use_ollama: bool = False) -> str:
     for source_label, target_label in LABEL_MAP.items():
         if line.startswith(source_label):
             value = line[len(source_label):].strip()
 
             if source_label in {"- Top Keywords:", "- Matched Keywords:"}:
-                translated_value = _translate_keyword_list(value)
+                translated_value = _translate_keyword_list(value, use_ollama=use_ollama)
             elif source_label == "- Matched:":
                 translated_value = {"Yes": "はい", "No": "いいえ"}.get(value, value)
             elif source_label == "- Source:":
@@ -434,7 +449,7 @@ def translate_markdown_to_japanese(
             continue
 
         if line.startswith("- "):
-            translated_lines.append(_translate_label_line(line))
+            translated_lines.append(_translate_label_line(line, use_ollama=use_ollama))
             continue
 
         translated_lines.append(_translate_text_to_japanese(line))

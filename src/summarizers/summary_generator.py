@@ -14,7 +14,8 @@ def _is_safe_summary(text: str) -> bool:
     if not isinstance(text, str):
         return False
     stripped = " ".join(text.split())
-    if not stripped or len(stripped) > 240:
+    # 修正4: 日本語は文字数が増えるため上限を 240 → 400 に引き上げる
+    if not stripped or len(stripped) > 400:
         return False
     if any(token in stripped for token in ("```", "---", "#", "\n", "\r")):
         return False
@@ -24,11 +25,12 @@ def _is_safe_summary(text: str) -> bool:
 def _build_ollama_summary_prompt(title: str, source_name: str) -> str:
     safe_title = sanitize_llm_input(title, limit=300)
     safe_source = sanitize_llm_input(source_name, limit=100)
+    # 修正4: 日本語で要約を出力するようにプロンプトを変更
     return (
-        f"The following is an article title from {safe_source}.\n"
-        "Write a one-sentence summary in English describing what this article is likely about.\n"
-        "Output only the summary sentence, nothing else.\n\n"
-        f"Title: {safe_title}"
+        f"以下は {safe_source} の記事タイトルです。\n"
+        "この記事が何について書かれているかを、日本語で1文で要約してください。\n"
+        "要約文のみを出力し、それ以外は何も出力しないでください。\n\n"
+        f"タイトル: {safe_title}"
     )
 
 

@@ -4,50 +4,48 @@
     "version": "0.1",
     "mode": "local"
   },
-
   "sources": {
     "rss": [
       {
         "name": "Hugging Face Blog",
         "url": "https://huggingface.co/blog/feed.xml",
-        "max_items": 5
+        "max_age_days": 14
       },
       {
         "name": "OpenAI Blog",
         "url": "https://openai.com/blog/rss.xml",
-        "max_items": 5
+        "max_age_days": 14
       },
       {
         "name": "Zenn",
         "url": "https://zenn.dev/feed",
-        "max_items": 5
+        "max_age_days": 14
       },
       {
         "name": "Qiita",
         "url": "https://qiita.com/popular-items/feed",
-        "max_items": 5,
-        "min_score": 3
+        "min_score": 3,
+        "max_age_days": 14
       },
       {
         "name": "Google DeepMind Blog",
         "url": "https://deepmind.google/blog/rss.xml",
-        "max_items": 5
+        "max_age_days": 14
       },
       {
         "name": "Meta AI Research",
         "url": "https://engineering.fb.com/category/ai-research/feed/",
-        "max_items": 5
+        "max_age_days": 7
       },
       {
         "name": "ITmedia AI",
         "url": "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml",
-        "max_items": 5
+        "max_age_days": 14
       }
     ],
     "web": [],
     "api": []
   },
-
   "monitoring": {
     "enabled": true,
     "keywords": [
@@ -108,21 +106,17 @@
     },
     "match_mode": "partial"
   },
-
   "deduplication": {
-    "enabled": false,
+    "enabled": true,
     "mode": "url_and_title"
   },
-
   "summary_generation": {
     "enabled": true
   },
-
   "exploration": {
     "enabled": true,
     "max_items": 20
   },
-
   "output": {
     "base_dir": "output",
     "monitoring_dir": "output/monitoring",
@@ -130,13 +124,11 @@
     "format": "markdown",
     "save_history": true
   },
-
   "logging": {
     "level": "INFO",
     "save_to_file": true,
     "log_dir": "logs"
   },
-
   "network": {
     "timeout_seconds": 10
   }
