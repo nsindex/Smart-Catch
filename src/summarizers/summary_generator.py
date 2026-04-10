@@ -5,7 +5,7 @@ from typing import Any
 
 from src.utils.llm_sanitizer import sanitize_llm_input
 
-_OLLAMA_API_URL = "http://localhost:11434/api/generate"
+_DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 _OLLAMA_MODEL = "gemma3n:e4b"
 _OLLAMA_TIMEOUT_SECONDS = 12
 
@@ -34,7 +34,11 @@ def _build_ollama_summary_prompt(title: str, source_name: str) -> str:
     )
 
 
-def _generate_summary_with_ollama(title: str, source_name: str) -> str | None:
+def _generate_summary_with_ollama(
+    title: str,
+    source_name: str,
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+) -> str | None:
     if not title:
         return None
 
@@ -49,7 +53,7 @@ def _generate_summary_with_ollama(title: str, source_name: str) -> str | None:
         },
     }
     request = urllib.request.Request(
-        _OLLAMA_API_URL,
+        f"{ollama_host}/api/generate",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
@@ -75,7 +79,7 @@ def _generate_summary_with_ollama(title: str, source_name: str) -> str | None:
     return result
 
 
-def _build_local_summary(entry: dict[str, Any]) -> str:
+def _build_local_summary(entry: dict[str, Any], ollama_host: str = _DEFAULT_OLLAMA_HOST) -> str:
     title = str(entry.get("title", "")).strip()
     source_name = str(entry.get("source_name", entry.get("source", ""))).strip()
     published = str(entry.get("published", entry.get("published_at", ""))).strip()
@@ -92,7 +96,7 @@ def _build_local_summary(entry: dict[str, Any]) -> str:
                         tag_terms.append(term)
 
     # Ollamaで要約生成を試みる
-    ollama_summary = _generate_summary_with_ollama(title, source_name)
+    ollama_summary = _generate_summary_with_ollama(title, source_name, ollama_host=ollama_host)
     if ollama_summary:
         return ollama_summary
 
@@ -122,7 +126,11 @@ def _build_local_summary(entry: dict[str, Any]) -> str:
     return "".join(summary_parts)
 
 
-def generate_missing_summaries(entries: list[dict], enabled: bool = False) -> list[dict]:
+def generate_missing_summaries(
+    entries: list[dict],
+    enabled: bool = False,
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+) -> list[dict]:
     if not enabled:
         return entries
 
@@ -140,7 +148,7 @@ def generate_missing_summaries(entries: list[dict], enabled: bool = False) -> li
             continue
 
         try:
-            generated_summary = _build_local_summary(entry)
+            generated_summary = _build_local_summary(entry, ollama_host=ollama_host)
         except Exception:
             processed_entries.append(entry)
             continue

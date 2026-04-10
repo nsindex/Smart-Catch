@@ -54,6 +54,7 @@ def run_rss_pipeline(
         if not rss_configs:
             raise ValueError("No RSS source configuration found.")
 
+        ollama_host = config.get("ollama", {}).get("host", "http://localhost:11434")
         summary_generation_config = config.get("summary_generation", {})
         summary_generation_enabled = summary_generation_config.get("enabled", False)
         deduplication_config = config.get("deduplication", {})
@@ -101,6 +102,7 @@ def run_rss_pipeline(
         normalized_entries = generate_missing_summaries(
             normalized_entries,
             enabled=summary_generation_enabled,
+            ollama_host=ollama_host,
         )
         remaining_empty_summary_count = sum(
             1 for entry in normalized_entries if not entry.get("summary")
@@ -232,11 +234,13 @@ def run_rss_pipeline(
             exploration_markdown,
             document_type="exploration",
             use_ollama=False,
+            ollama_host=ollama_host,
         )
         monitoring_markdown_ja = translate_markdown_to_japanese(
             monitoring_markdown,
             document_type="monitoring",
             use_ollama=True,
+            ollama_host=ollama_host,
         )
         LOGGER.info("Japanese translation completed")
         emit_progress("INFO", "日本語翻訳完了")

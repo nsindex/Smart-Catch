@@ -141,5 +141,8 @@
   },
   "network": {
     "timeout_seconds": 10
+  },
+  "ollama": {
+    "host": "http://localhost:11434"
   }
 }

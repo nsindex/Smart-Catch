@@ -154,15 +154,25 @@ class SmartCatchGUI:
             state=tk.NORMAL if selected else tk.DISABLED
         )
 
+    def _get_ollama_host(self) -> str:
+        try:
+            config_path = Path(self.config_path_var.get())
+            with config_path.open(encoding="utf-8") as f:
+                cfg = json.load(f)
+            return cfg.get("ollama", {}).get("host", "http://localhost:11434")
+        except Exception:
+            return "http://localhost:11434"
+
     def _check_ollama_on_startup(self) -> None:
         from src.utils.ollama_health import ensure_ollama_running, is_ollama_running
 
-        if is_ollama_running():
+        ollama_host = self._get_ollama_host()
+        if is_ollama_running(ollama_host=ollama_host):
             self._append_result("INFO", "Ollama: 起動確認済み")
             return
 
         self._append_result("WARNING", "Ollama未起動。自動起動を試みています...")
-        success = ensure_ollama_running()
+        success = ensure_ollama_running(ollama_host=ollama_host)
         if success:
             self._append_result("INFO", "Ollama: 自動起動成功")
         else:
@@ -248,7 +258,7 @@ class SmartCatchGUI:
             # Run時チェック：起動時の自動起動とは別に状態を確認してWARNINGを出す
             # （自動起動は起動時に試み済みのため、ここでは is_running チェックのみ）
             from src.utils.ollama_health import is_ollama_running
-            if not is_ollama_running():
+            if not is_ollama_running(ollama_host=self._get_ollama_host()):
                 self._append_result("WARNING", "Ollama未起動。要約・翻訳はフォールバックで処理します")
             config = load_config(config_path)
             output_config = config.get("output", {})

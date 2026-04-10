@@ -101,7 +101,7 @@ TERM_MAP = {
 }
 
 DEFAULT_TRANSLATION_MODEL = "gemma3n:e4b"
-OLLAMA_API_URL = "http://localhost:11434/api/generate"
+_DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 OLLAMA_TIMEOUT_SECONDS = 12
 ASCII_WORD_PATTERN = re.compile(r"\b[A-Za-z][A-Za-z0-9'\-\.]*\b")
 HIGHLIGHT_ARTICLE_PATTERN = re.compile(r"^- \[(?P<topic>[^\]]+)\] (?P<title>.*) \(Score: (?P<score>[^\)]+)\)$")
@@ -239,7 +239,11 @@ def _should_use_ollama_translation(text: str) -> bool:
     return True
 
 
-def _translate_text_with_ollama(text: str, content_type: str = "general") -> str | None:
+def _translate_text_with_ollama(
+    text: str,
+    content_type: str = "general",
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+) -> str | None:
     if not _should_use_ollama_translation(text):
         return None
 
@@ -258,7 +262,7 @@ def _translate_text_with_ollama(text: str, content_type: str = "general") -> str
         },
     }
     request = urllib.request.Request(
-        OLLAMA_API_URL,
+        f"{ollama_host}/api/generate",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
@@ -298,8 +302,12 @@ def _translate_text_with_ollama(text: str, content_type: str = "general") -> str
     return translated_text
 
 
-def _translate_content_with_fallback(text: str, content_type: str = "general") -> str:
-    llm_translated_text = _translate_text_with_ollama(text, content_type=content_type)
+def _translate_content_with_fallback(
+    text: str,
+    content_type: str = "general",
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+) -> str:
+    llm_translated_text = _translate_text_with_ollama(text, content_type=content_type, ollama_host=ollama_host)
     if llm_translated_text:
         return llm_translated_text
 
@@ -310,14 +318,18 @@ def _translate_content_with_fallback(text: str, content_type: str = "general") -
     return text
 
 
-def _translate_keyword_list(text: str, use_ollama: bool = False) -> str:
+def _translate_keyword_list(
+    text: str,
+    use_ollama: bool = False,
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+) -> str:
     parts = [part.strip() for part in text.split(",") if part.strip()]
     translated_parts = []
     seen: set[str] = set()
 
     for part in parts:
         translated = (
-            _translate_content_with_fallback(part)
+            _translate_content_with_fallback(part, ollama_host=ollama_host)
             if use_ollama
             else _translate_text_to_japanese(part)
         )
@@ -331,19 +343,23 @@ def _translate_keyword_list(text: str, use_ollama: bool = False) -> str:
     return ", ".join(translated_parts)
 
 
-def _translate_label_line(line: str, use_ollama: bool = False) -> str:
+def _translate_label_line(
+    line: str,
+    use_ollama: bool = False,
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+) -> str:
     for source_label, target_label in LABEL_MAP.items():
         if line.startswith(source_label):
             value = line[len(source_label):].strip()
 
             if source_label in {"- Top Keywords:", "- Matched Keywords:"}:
-                translated_value = _translate_keyword_list(value, use_ollama=use_ollama)
+                translated_value = _translate_keyword_list(value, use_ollama=use_ollama, ollama_host=ollama_host)
             elif source_label == "- Matched:":
                 translated_value = {"Yes": "はい", "No": "いいえ"}.get(value, value)
             elif source_label == "- Source:":
                 translated_value = _translate_text_to_japanese(value)
             elif source_label == "- Summary:":
-                translated_value = _translate_content_with_fallback(value)
+                translated_value = _translate_content_with_fallback(value, ollama_host=ollama_host)
             else:
                 translated_value = value
 
@@ -380,6 +396,7 @@ def translate_markdown_to_japanese(
     markdown_text: str,
     document_type: str = "exploration",
     use_ollama: bool = False,
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
 ) -> str:
     """Markdown を日本語に翻訳する。
 
@@ -397,7 +414,7 @@ def translate_markdown_to_japanese(
 
     def _translate_content(text: str, content_type: str = "general") -> str:
         if use_ollama:
-            return _translate_content_with_fallback(text, content_type=content_type)
+            return _translate_content_with_fallback(text, content_type=content_type, ollama_host=ollama_host)
         return _translate_text_to_japanese(text)
 
     translated_lines = []
@@ -455,7 +472,7 @@ def translate_markdown_to_japanese(
             continue
 
         if line.startswith("- "):
-            translated_lines.append(_translate_label_line(line, use_ollama=use_ollama))
+            translated_lines.append(_translate_label_line(line, use_ollama=use_ollama, ollama_host=ollama_host))
             continue
 
         translated_lines.append(_translate_content(line))

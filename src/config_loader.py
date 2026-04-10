@@ -91,6 +91,12 @@ def validate_config(config: dict) -> None:
         _validate_optional_bool(logging_config, "save_to_file")
         _validate_optional_str(logging_config, "log_dir")
 
+    ollama_config = config.get("ollama")
+    if ollama_config is not None:
+        if not isinstance(ollama_config, dict):
+            raise ValueError("ollama must be an object")
+        _validate_optional_str(ollama_config, "host")
+
 
 def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict:
     path = Path(config_path)
