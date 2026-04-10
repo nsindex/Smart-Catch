@@ -142,7 +142,8 @@
   "network": {
     "timeout_seconds": 10
   },
-  "ollama": {
-    "host": "http://localhost:11434"
-  }
+ "ollama": {
+  "host": "http://192.168.0.4:11434/",
+  "model": "qwen2.5:7b"
+}
 }

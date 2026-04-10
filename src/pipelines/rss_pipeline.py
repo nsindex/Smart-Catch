@@ -235,7 +235,7 @@ def run_rss_pipeline(
         exploration_markdown_ja = translate_markdown_to_japanese(
             exploration_markdown,
             document_type="exploration",
-            use_ollama=False,
+            use_ollama=True,
             ollama_host=ollama_host,
             ollama_model=ollama_model,
         )

@@ -114,4 +114,13 @@ def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict:
         raise OSError(f"Failed to read configuration file: {path}") from exc
 
     validate_config(config)
+
+    ollama_config = config.get("ollama")
+    if isinstance(ollama_config, dict):
+        host = ollama_config.get("host")
+        if isinstance(host, str):
+            normalized_host = host.strip().rstrip("/")
+            if normalized_host:
+                ollama_config["host"] = normalized_host
+
     return config
