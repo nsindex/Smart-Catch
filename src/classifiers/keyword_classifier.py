@@ -52,6 +52,9 @@ def classify_entries(
             if in_summary:
                 score += keyword_weight
 
+        # 修正3: 一致キーワードの重複を除去しつつ順序を保持する
+        matched_keywords = list(dict.fromkeys(matched_keywords))
+
         classified_entries.append(
             {
                 "source": entry.get("source", ""),

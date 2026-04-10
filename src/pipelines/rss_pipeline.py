@@ -6,6 +6,7 @@ from src.action_generators.action_generator import build_action_suggestions
 from src.classifiers.keyword_classifier import classify_entries
 from src.config_loader import load_config
 from src.deduplicators.article_deduplicator import deduplicate_articles
+from src.deduplicators.seen_articles_db import filter_seen_articles, mark_articles_as_seen
 from src.fetchers.rss_fetcher import fetch_rss_entries
 from src.normalizers.rss_normalizer import normalize_rss_entries
 from src.report_generators.daily_report_generator import build_daily_report
@@ -49,6 +50,9 @@ def run_rss_pipeline(
         deduplication_mode = deduplication_config.get("mode", "url_only")
         output_config = config.get("output", {})
         save_history = output_config.get("save_history", False)
+        seen_articles_db_path = str(
+            Path(output_config.get("base_dir", "output")) / "seen_articles.db"
+        )
 
         exploration_dir = output_config.get("exploration_dir", "output/exploration")
         monitoring_dir = config["output"]["monitoring_dir"]
@@ -138,6 +142,16 @@ def run_rss_pipeline(
                 before_filter,
                 len(classified_entries),
             )
+
+        # 修正1: 実行をまたいだ既出URL除去（SQLite永続化）
+        seen_before_count = len(classified_entries)
+        classified_entries = filter_seen_articles(classified_entries, seen_articles_db_path)
+        LOGGER.info(
+            "Seen-articles filter: before=%s after=%s",
+            seen_before_count,
+            len(classified_entries),
+        )
+        emit_progress("INFO", f"既出記事を除外: {seen_before_count - len(classified_entries)} 件スキップ")
 
         dedup_before_count = len(classified_entries)
         classified_entries = deduplicate_articles(
@@ -264,6 +278,10 @@ def run_rss_pipeline(
             LOGGER.info("Monitoring history markdown saved: %s", monitoring_history_path)
             LOGGER.info("Exploration Japanese history markdown saved: %s", exploration_history_ja_path)
             LOGGER.info("Monitoring Japanese history markdown saved: %s", monitoring_history_ja_path)
+
+        # 修正1: 今回出力した記事URLをDBに記録する
+        mark_articles_as_seen(classified_entries, seen_articles_db_path)
+        LOGGER.info("Seen-articles DB updated")
 
         LOGGER.info("Pipeline completed")
         emit_progress("INFO", "パイプライン完了")
