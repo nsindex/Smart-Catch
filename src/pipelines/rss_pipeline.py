@@ -139,17 +139,6 @@ def run_rss_pipeline(
         )
 
         source_min_scores = _build_source_min_score_map(rss_configs, default_min_score)
-        before_filter = len(classified_entries)
-        classified_entries = [
-            a for a in classified_entries
-            if a.get("score", 0) >= source_min_scores.get(a.get("source", ""), default_min_score)
-        ]
-        LOGGER.info(
-            "Min score filtering: default=%s before=%s after=%s",
-            default_min_score,
-            before_filter,
-            len(classified_entries),
-        )
 
         # 修正1: 実行をまたいだ既出URL除去（SQLite永続化）
         seen_before_count = len(classified_entries)
@@ -201,12 +190,17 @@ def run_rss_pipeline(
 
         exploration_articles = classified_entries
         monitoring_articles = [
-            article for article in classified_entries if article.get("matched") is True
+            article for article in classified_entries
+            if article.get("matched") is True
+            and article.get("score", 0) >= source_min_scores.get(
+                article.get("source", ""), default_min_score
+            )
         ]
         LOGGER.info(
-            "Article split completed: exploration=%s monitoring=%s",
+            "Article split completed: exploration=%s monitoring=%s (min_score default=%s)",
             len(exploration_articles),
             len(monitoring_articles),
+            default_min_score,
         )
 
         exploration_markdown = build_markdown(
