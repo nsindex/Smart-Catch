@@ -108,6 +108,7 @@ HIGHLIGHT_ARTICLE_PATTERN = re.compile(r"^- \[(?P<topic>[^\]]+)\] (?P<title>.*) 
 TOPIC_ID_PATTERN = re.compile(r"^#{1,6}\s+topic_\d+$")
 URL_ONLY_PATTERN = re.compile(r"^https?://", re.IGNORECASE)
 JAPANESE_CHAR_PATTERN = re.compile(r"[ぁ-んァ-ン一-龠々ー]")
+CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 def _load_translation_cache() -> dict:
@@ -196,13 +197,17 @@ def _looks_like_markdown_safe_translation(source_text: str, translated_text: str
 
 
 def _build_translation_prompt(text: str) -> str:
-    safe_text = sanitize_llm_input(text, limit=2000)
+    safe_text = CONTROL_CHAR_PATTERN.sub("", text)
+    safe_text = safe_text.replace("```", "` ` `").replace("---", "—").strip()[:4000]
     return (
-        "次の英語テキストを、自然で読みやすい日本語に翻訳してください。\n"
-        "Markdown 記法、URL、topic_001 のような ID、数値は維持してください。\n"
-        "余計な説明や前置きは書かず、翻訳後の本文だけを返してください。\n"
-        "固有名詞は無理に訳さず原文維持で構いません。\n\n"
-        f"{safe_text}"
+        "次のテキストを、自然で読みやすい日本語に翻訳してください。\n"
+        "Markdown の見出し・箇条書き・改行・空行は維持してください。\n"
+        "URL、topic_001 のような ID、数値、製品名・API名・サービス名は維持してください。\n"
+        "入力にない説明、前置き、補足、コードブロックは追加しないでください。\n"
+        "翻訳後の本文だけを返してください。\n\n"
+        "<text>\n"
+        f"{safe_text}\n"
+        "</text>"
     )
 
 
@@ -227,7 +232,8 @@ def _should_use_ollama_translation(text: str) -> bool:
     if not ASCII_WORD_PATTERN.search(text):
         return False
 
-    if JAPANESE_CHAR_PATTERN.search(text):
+    stripped = text.strip()
+    if URL_ONLY_PATTERN.match(stripped) or TOPIC_ID_PATTERN.match(stripped):
         return False
 
     return True
@@ -248,7 +254,7 @@ def _translate_text_with_ollama(text: str, content_type: str = "general") -> str
         "stream": False,
         "options": {
             "temperature": 0,
-            "stop": ["\n\n", "---", "```"],
+            "stop": ["</text>", "```"],
         },
     }
     request = urllib.request.Request(
@@ -452,7 +458,7 @@ def translate_markdown_to_japanese(
             translated_lines.append(_translate_label_line(line, use_ollama=use_ollama))
             continue
 
-        translated_lines.append(_translate_text_to_japanese(line))
+        translated_lines.append(_translate_content(line))
 
     return "\n".join(translated_lines)
 
