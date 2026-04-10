@@ -9,22 +9,16 @@
       {
         "name": "Hugging Face Blog",
         "url": "https://huggingface.co/blog/feed.xml",
-        "min_score": 2,
         "max_age_days": 14
       },
       {
         "name": "OpenAI Blog",
         "url": "https://openai.com/blog/rss.xml",
-        "min_score": 2,
-        "exclude_url_prefixes": [
-          "https://openai.com/academy/"
-        ],
         "max_age_days": 14
       },
       {
         "name": "Zenn",
         "url": "https://zenn.dev/feed",
-        "min_score": 2,
         "max_age_days": 14
       },
       {
@@ -36,19 +30,16 @@
       {
         "name": "Google DeepMind Blog",
         "url": "https://deepmind.google/blog/rss.xml",
-        "min_score": 2,
         "max_age_days": 14
       },
       {
         "name": "Meta AI Research",
         "url": "https://engineering.fb.com/category/ai-research/feed/",
-        "min_score": 2,
         "max_age_days": 7
       },
       {
         "name": "ITmedia AI",
         "url": "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml",
-        "min_score": 2,
         "max_age_days": 14
       }
     ],
@@ -57,7 +48,6 @@
   },
   "monitoring": {
     "enabled": true,
-    "min_score": 2,
     "keywords": [
       "AI",
       "人工知能",
@@ -141,9 +131,5 @@
   },
   "network": {
     "timeout_seconds": 10
-  },
- "ollama": {
-  "host": "http://192.168.0.4:11434/",
-  "model": "qwen2.5:14b"
-}
+  }
 }

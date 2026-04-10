@@ -100,14 +100,35 @@ TERM_MAP = {
     "embedding": "埋め込み",
 }
 
-DEFAULT_TRANSLATION_MODEL = "gemma3n:e4b"
-OLLAMA_API_URL = "http://localhost:11434/api/generate"
-OLLAMA_TIMEOUT_SECONDS = 12
+_DEFAULT_OLLAMA_HOST = "http://localhost:11434"
+_DEFAULT_OLLAMA_MODEL = "gemma3n:e4b"
+OLLAMA_TIMEOUT_SECONDS = 60
 ASCII_WORD_PATTERN = re.compile(r"\b[A-Za-z][A-Za-z0-9'\-\.]*\b")
 HIGHLIGHT_ARTICLE_PATTERN = re.compile(r"^- \[(?P<topic>[^\]]+)\] (?P<title>.*) \(Score: (?P<score>[^\)]+)\)$")
 TOPIC_ID_PATTERN = re.compile(r"^#{1,6}\s+topic_\d+$")
 URL_ONLY_PATTERN = re.compile(r"^https?://", re.IGNORECASE)
 JAPANESE_CHAR_PATTERN = re.compile(r"[ぁ-んァ-ン一-龠々ー]")
+CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+COMMON_ENGLISH_WORDS = {
+    "a",
+    "an",
+    "and",
+    "as",
+    "at",
+    "by",
+    "for",
+    "from",
+    "in",
+    "into",
+    "is",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "with",
+}
+DICTIONARY_TRANSLATION_MAX_WORDS = 3
 
 
 def _load_translation_cache() -> dict:
@@ -149,6 +170,11 @@ def _translate_text_to_japanese(text: str) -> str:
     if not isinstance(text, str) or not text:
         return text
 
+    # 辞書翻訳はキーワードや短いフレーズ向けに限定し、
+    # 英文タイトルや英文要約のような自然文は Ollama 側に委ねる。
+    if _is_english_rich_text(text) and not _is_dictionary_safe_text(text):
+        return text
+
     translated_text = text
 
     for source_text, target_text in sorted(PHRASE_MAP, key=lambda x: len(x[0]), reverse=True):
@@ -169,6 +195,54 @@ def _translate_text_to_japanese(text: str) -> str:
     translated_text = re.sub(r"\s+([。、])", r"\1", translated_text)
 
     return translated_text
+
+
+def _count_ascii_words(text: str) -> int:
+    return len(ASCII_WORD_PATTERN.findall(text))
+
+
+def _has_common_english_words(text: str) -> bool:
+    lowered_words = [word.lower() for word in ASCII_WORD_PATTERN.findall(text)]
+    return any(word in COMMON_ENGLISH_WORDS for word in lowered_words)
+
+
+def _is_dictionary_safe_text(text: str) -> bool:
+    ascii_word_count = _count_ascii_words(text)
+    if ascii_word_count == 0:
+        return True
+
+    if ascii_word_count <= DICTIONARY_TRANSLATION_MAX_WORDS and "\n" not in text:
+        return True
+
+    return False
+
+
+def _is_english_rich_text(text: str) -> bool:
+    if not isinstance(text, str):
+        return False
+
+    stripped = text.strip()
+    if not stripped:
+        return False
+
+    if URL_ONLY_PATTERN.match(stripped) or TOPIC_ID_PATTERN.match(stripped):
+        return False
+
+    ascii_word_count = _count_ascii_words(text)
+    if ascii_word_count < 2:
+        return False
+
+    if JAPANESE_CHAR_PATTERN.search(text):
+        return True
+
+    return _has_common_english_words(text) or ascii_word_count >= 4
+
+
+def _normalize_ollama_host(ollama_host: str) -> str:
+    normalized = (ollama_host or _DEFAULT_OLLAMA_HOST).strip()
+    if not normalized:
+        return _DEFAULT_OLLAMA_HOST
+    return normalized.rstrip("/")
 
 
 def _looks_like_markdown_safe_translation(source_text: str, translated_text: str) -> bool:
@@ -196,13 +270,17 @@ def _looks_like_markdown_safe_translation(source_text: str, translated_text: str
 
 
 def _build_translation_prompt(text: str) -> str:
-    safe_text = sanitize_llm_input(text, limit=2000)
+    safe_text = CONTROL_CHAR_PATTERN.sub("", text)
+    safe_text = safe_text.replace("```", "` ` `").replace("---", "—").strip()[:4000]
     return (
-        "次の英語テキストを、自然で読みやすい日本語に翻訳してください。\n"
-        "Markdown 記法、URL、topic_001 のような ID、数値は維持してください。\n"
-        "余計な説明や前置きは書かず、翻訳後の本文だけを返してください。\n"
-        "固有名詞は無理に訳さず原文維持で構いません。\n\n"
-        f"{safe_text}"
+        "次のテキストを、自然で読みやすい日本語に翻訳してください。\n"
+        "Markdown の見出し・箇条書き・改行・空行は維持してください。\n"
+        "URL、topic_001 のような ID、数値、製品名・API名・サービス名は維持してください。\n"
+        "入力にない説明、前置き、補足、コードブロックは追加しないでください。\n"
+        "翻訳後の本文だけを返してください。\n\n"
+        "<text>\n"
+        f"{safe_text}\n"
+        "</text>"
     )
 
 
@@ -227,32 +305,44 @@ def _should_use_ollama_translation(text: str) -> bool:
     if not ASCII_WORD_PATTERN.search(text):
         return False
 
-    if JAPANESE_CHAR_PATTERN.search(text):
+    stripped = text.strip()
+    if URL_ONLY_PATTERN.match(stripped) or TOPIC_ID_PATTERN.match(stripped):
         return False
 
-    return True
+    return _is_english_rich_text(text) or not _is_dictionary_safe_text(text)
 
 
-def _translate_text_with_ollama(text: str, content_type: str = "general") -> str | None:
+def _translate_text_with_ollama(
+    text: str,
+    content_type: str = "general",
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+    ollama_model: str = _DEFAULT_OLLAMA_MODEL,
+) -> str | None:
     if not _should_use_ollama_translation(text):
         return None
 
+    ollama_host = _normalize_ollama_host(ollama_host)
+
     cache_key = f"{content_type}:{text}"
     if cache_key in _TRANSLATION_CACHE:
-        return _TRANSLATION_CACHE[cache_key]
+        cached = _TRANSLATION_CACHE[cache_key]
+        if cached is None:
+            LOGGER.debug("Ollama translation: cache miss (previously failed): %r", text[:80])
+        return cached
 
+    LOGGER.debug("Ollama translation: requesting %s %r", content_type, text[:80])
     prompt = _build_title_translation_prompt(text) if content_type == "title" else _build_translation_prompt(text)
     payload = {
-        "model": DEFAULT_TRANSLATION_MODEL,
+        "model": ollama_model,
         "prompt": prompt,
         "stream": False,
         "options": {
             "temperature": 0,
-            "stop": ["\n\n", "---", "```"],
+            "stop": ["</text>", "```"],
         },
     }
     request = urllib.request.Request(
-        OLLAMA_API_URL,
+        f"{ollama_host}/api/generate",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
@@ -262,23 +352,29 @@ def _translate_text_with_ollama(text: str, content_type: str = "general") -> str
         with urllib.request.urlopen(request, timeout=OLLAMA_TIMEOUT_SECONDS) as response:
             response_data = json.loads(response.read().decode("utf-8"))
     except urllib.error.URLError as exc:
-        reason = getattr(exc, "reason", None)
-        if isinstance(reason, (TimeoutError, OSError)) and not isinstance(reason, ConnectionRefusedError):
-            # タイムアウト等の一時的エラーはキャッシュして再試行を抑制
-            _TRANSLATION_CACHE[cache_key] = None
-        # 接続拒否（Ollama未起動）はキャッシュしない（起動後に再試行できるよう）
+        LOGGER.warning("Ollama request failed (URLError): %s | host=%s", exc, ollama_host)
+        # タイムアウト・接続エラーはキャッシュしない（ホスト変更後にリトライできるよう）
         return None
-    except (TimeoutError, ValueError, OSError):
-        _TRANSLATION_CACHE[cache_key] = None
+    except TimeoutError as exc:
+        LOGGER.warning("Ollama request timed out (%ss): %s", OLLAMA_TIMEOUT_SECONDS, exc)
+        return None
+    except (ValueError, OSError) as exc:
+        LOGGER.warning("Ollama request error: %s", exc)
         return None
 
     translated_text = response_data.get("response")
     if not isinstance(translated_text, str):
+        LOGGER.warning("Ollama response missing 'response' field: %r", response_data)
         _TRANSLATION_CACHE[cache_key] = None
         return None
 
     translated_text = translated_text.strip()
     if not _looks_like_markdown_safe_translation(text, translated_text):
+        LOGGER.warning(
+            "Ollama output rejected by validator: source=%r translated=%r",
+            text[:60],
+            translated_text[:60],
+        )
         _TRANSLATION_CACHE[cache_key] = None
         return None
 
@@ -292,10 +388,18 @@ def _translate_text_with_ollama(text: str, content_type: str = "general") -> str
     return translated_text
 
 
-def _translate_content_with_fallback(text: str, content_type: str = "general") -> str:
-    llm_translated_text = _translate_text_with_ollama(text, content_type=content_type)
+def _translate_content_with_fallback(
+    text: str,
+    content_type: str = "general",
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+    ollama_model: str = _DEFAULT_OLLAMA_MODEL,
+) -> str:
+    llm_translated_text = _translate_text_with_ollama(text, content_type=content_type, ollama_host=ollama_host, ollama_model=ollama_model)
     if llm_translated_text:
         return llm_translated_text
+
+    if _is_english_rich_text(text) and not _is_dictionary_safe_text(text):
+        return text
 
     dictionary_translated_text = _translate_text_to_japanese(text)
     if dictionary_translated_text:
@@ -304,14 +408,19 @@ def _translate_content_with_fallback(text: str, content_type: str = "general") -
     return text
 
 
-def _translate_keyword_list(text: str, use_ollama: bool = False) -> str:
+def _translate_keyword_list(
+    text: str,
+    use_ollama: bool = False,
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+    ollama_model: str = _DEFAULT_OLLAMA_MODEL,
+) -> str:
     parts = [part.strip() for part in text.split(",") if part.strip()]
     translated_parts = []
     seen: set[str] = set()
 
     for part in parts:
         translated = (
-            _translate_content_with_fallback(part)
+            _translate_content_with_fallback(part, ollama_host=ollama_host, ollama_model=ollama_model)
             if use_ollama
             else _translate_text_to_japanese(part)
         )
@@ -325,19 +434,28 @@ def _translate_keyword_list(text: str, use_ollama: bool = False) -> str:
     return ", ".join(translated_parts)
 
 
-def _translate_label_line(line: str, use_ollama: bool = False) -> str:
+def _translate_label_line(
+    line: str,
+    use_ollama: bool = False,
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+    ollama_model: str = _DEFAULT_OLLAMA_MODEL,
+) -> str:
     for source_label, target_label in LABEL_MAP.items():
         if line.startswith(source_label):
             value = line[len(source_label):].strip()
 
             if source_label in {"- Top Keywords:", "- Matched Keywords:"}:
-                translated_value = _translate_keyword_list(value, use_ollama=use_ollama)
+                translated_value = _translate_keyword_list(value, use_ollama=use_ollama, ollama_host=ollama_host, ollama_model=ollama_model)
             elif source_label == "- Matched:":
                 translated_value = {"Yes": "はい", "No": "いいえ"}.get(value, value)
             elif source_label == "- Source:":
                 translated_value = _translate_text_to_japanese(value)
             elif source_label == "- Summary:":
-                translated_value = _translate_content_with_fallback(value)
+                translated_value = (
+                    _translate_content_with_fallback(value, ollama_host=ollama_host, ollama_model=ollama_model)
+                    if use_ollama or _should_use_ollama_translation(value)
+                    else _translate_text_to_japanese(value)
+                )
             else:
                 translated_value = value
 
@@ -374,6 +492,8 @@ def translate_markdown_to_japanese(
     markdown_text: str,
     document_type: str = "exploration",
     use_ollama: bool = False,
+    ollama_host: str = _DEFAULT_OLLAMA_HOST,
+    ollama_model: str = _DEFAULT_OLLAMA_MODEL,
 ) -> str:
     """Markdown を日本語に翻訳する。
 
@@ -390,8 +510,8 @@ def translate_markdown_to_japanese(
         raise ValueError("document_type must be a string.")
 
     def _translate_content(text: str, content_type: str = "general") -> str:
-        if use_ollama:
-            return _translate_content_with_fallback(text, content_type=content_type)
+        if use_ollama or _should_use_ollama_translation(text):
+            return _translate_content_with_fallback(text, content_type=content_type, ollama_host=ollama_host, ollama_model=ollama_model)
         return _translate_text_to_japanese(text)
 
     translated_lines = []
@@ -449,10 +569,10 @@ def translate_markdown_to_japanese(
             continue
 
         if line.startswith("- "):
-            translated_lines.append(_translate_label_line(line, use_ollama=use_ollama))
+            translated_lines.append(_translate_label_line(line, use_ollama=use_ollama, ollama_host=ollama_host, ollama_model=ollama_model))
             continue
 
-        translated_lines.append(_translate_text_to_japanese(line))
+        translated_lines.append(_translate_content(line))
 
     return "\n".join(translated_lines)
 

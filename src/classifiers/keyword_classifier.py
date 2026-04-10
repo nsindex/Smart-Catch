@@ -1,3 +1,15 @@
+from urllib.parse import urlparse
+
+
+def _should_force_ignore_entry(entry: dict) -> bool:
+    url = entry.get("url", "")
+    if not isinstance(url, str) or not url:
+        return False
+
+    parsed = urlparse(url)
+    return parsed.hostname == "openai.com" and parsed.path.startswith("/academy/")
+
+
 def classify_entries(
     entries: list[dict], keywords: list[str], keyword_weights: dict | None = None
 ) -> list[dict]:
@@ -31,6 +43,22 @@ def classify_entries(
     for entry in entries:
         title = entry.get("title", "")
         summary = entry.get("summary", "")
+        if _should_force_ignore_entry(entry):
+            classified_entries.append(
+                {
+                    "source": entry.get("source", ""),
+                    "source_url": entry.get("source_url", ""),
+                    "title": title,
+                    "url": entry.get("url", ""),
+                    "published_at": entry.get("published_at", ""),
+                    "summary": summary,
+                    "matched": False,
+                    "matched_keywords": [],
+                    "score": 0,
+                }
+            )
+            continue
+
         title_lower = title.lower()
         summary_lower = summary.lower()
         matched_keywords = []

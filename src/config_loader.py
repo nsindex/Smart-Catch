@@ -43,6 +43,13 @@ def validate_config(config: dict) -> None:
                 f"sources.rss[{index}].url must be a non-empty string"
             )
 
+        if "min_score" in rss_source:
+            min_score = rss_source["min_score"]
+            if not isinstance(min_score, int) or min_score < 0:
+                raise ValueError(
+                    f"sources.rss[{index}].min_score must be a non-negative integer"
+                )
+
     monitoring = _require_key(config, "monitoring")
     if not isinstance(monitoring, dict):
         raise ValueError("monitoring must be an object")
@@ -50,6 +57,11 @@ def validate_config(config: dict) -> None:
     keywords = _require_key(monitoring, "keywords")
     if not isinstance(keywords, list):
         raise ValueError("monitoring.keywords must be a list")
+
+    if "min_score" in monitoring:
+        min_score = monitoring["min_score"]
+        if not isinstance(min_score, int) or min_score < 0:
+            raise ValueError("monitoring.min_score must be a non-negative integer")
 
     if "keyword_weights" in monitoring and not isinstance(
         monitoring["keyword_weights"], dict
@@ -79,6 +91,13 @@ def validate_config(config: dict) -> None:
         _validate_optional_bool(logging_config, "save_to_file")
         _validate_optional_str(logging_config, "log_dir")
 
+    ollama_config = config.get("ollama")
+    if ollama_config is not None:
+        if not isinstance(ollama_config, dict):
+            raise ValueError("ollama must be an object")
+        _validate_optional_str(ollama_config, "host")
+        _validate_optional_str(ollama_config, "model")
+
 
 def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict:
     path = Path(config_path)
@@ -95,4 +114,13 @@ def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict:
         raise OSError(f"Failed to read configuration file: {path}") from exc
 
     validate_config(config)
+
+    ollama_config = config.get("ollama")
+    if isinstance(ollama_config, dict):
+        host = ollama_config.get("host")
+        if isinstance(host, str):
+            normalized_host = host.strip().rstrip("/")
+            if normalized_host:
+                ollama_config["host"] = normalized_host
+
     return config

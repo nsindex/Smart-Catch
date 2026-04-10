@@ -9,6 +9,26 @@ import feedparser
 LOGGER = logging.getLogger(__name__)
 
 
+def _should_exclude_entry(source_url: str, entry_link: str, rss_config: dict) -> bool:
+    if not isinstance(entry_link, str) or not entry_link.strip():
+        return False
+
+    parsed_source = urlparse(source_url)
+    parsed_link = urlparse(entry_link)
+    if parsed_link.scheme not in {"http", "https"}:
+        return False
+
+    if parsed_source.hostname == "openai.com" and parsed_link.hostname == "openai.com":
+        if parsed_link.path.startswith("/academy/"):
+            return True
+
+    for prefix in rss_config.get("exclude_url_prefixes", []):
+        if isinstance(prefix, str) and prefix and entry_link.startswith(prefix):
+            return True
+
+    return False
+
+
 def validate_rss_url(url: str) -> None:
     """RSS URLのスキームとホストを検証する。http/https のみ許可。
     localhost・プライベートIP・ループバックアドレスは拒否する。
@@ -85,6 +105,13 @@ def fetch_rss_entries(rss_config: dict) -> list[dict]:
         if not isinstance(max_age_days, int) or max_age_days < 1:
             raise ValueError("'max_age_days' must be a positive integer.")
 
+    exclude_url_prefixes = rss_config.get("exclude_url_prefixes")
+    if exclude_url_prefixes is not None:
+        if not isinstance(exclude_url_prefixes, list) or not all(
+            isinstance(prefix, str) for prefix in exclude_url_prefixes
+        ):
+            raise ValueError("'exclude_url_prefixes' must be a list of strings.")
+
     feed = feedparser.parse(source_url)
 
     if getattr(feed, "status", 200) >= 400:
@@ -113,6 +140,24 @@ def fetch_rss_entries(rss_config: dict) -> list[dict]:
             source_name,
             max_age_days,
             before_count,
+            len(entries),
+        )
+
+    before_exclude_count = len(entries)
+    entries = [
+        entry
+        for entry in entries
+        if not _should_exclude_entry(
+            source_url,
+            entry.get("link", "") if isinstance(entry, dict) else getattr(entry, "link", ""),
+            rss_config,
+        )
+    ]
+    if len(entries) != before_exclude_count:
+        LOGGER.info(
+            "Entry URL filter applied: source=%s before=%s after=%s",
+            source_name,
+            before_exclude_count,
             len(entries),
         )
 

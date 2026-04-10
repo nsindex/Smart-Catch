@@ -22,6 +22,17 @@ from src.writers.markdown_writer import build_markdown
 LOGGER = logging.getLogger(__name__)
 
 
+def _build_source_min_score_map(
+    rss_configs: list[dict],
+    default_min_score: int,
+) -> dict[str, int]:
+    min_scores: dict[str, int] = {}
+    for cfg in rss_configs:
+        source_name = cfg.get("name", cfg.get("url", "unknown"))
+        min_scores[source_name] = cfg.get("min_score", default_min_score)
+    return min_scores
+
+
 def run_rss_pipeline(
     config_path: str = "config/config.json",
     progress_callback: Callable[[str, str], None] | None = None,
@@ -43,6 +54,8 @@ def run_rss_pipeline(
         if not rss_configs:
             raise ValueError("No RSS source configuration found.")
 
+        ollama_host = config.get("ollama", {}).get("host", "http://localhost:11434")
+        ollama_model = config.get("ollama", {}).get("model", "gemma3n:e4b")
         summary_generation_config = config.get("summary_generation", {})
         summary_generation_enabled = summary_generation_config.get("enabled", False)
         deduplication_config = config.get("deduplication", {})
@@ -90,6 +103,8 @@ def run_rss_pipeline(
         normalized_entries = generate_missing_summaries(
             normalized_entries,
             enabled=summary_generation_enabled,
+            ollama_host=ollama_host,
+            ollama_model=ollama_model,
         )
         remaining_empty_summary_count = sum(
             1 for entry in normalized_entries if not entry.get("summary")
@@ -108,6 +123,7 @@ def run_rss_pipeline(
 
         keywords = config["monitoring"]["keywords"]
         keyword_weights = config["monitoring"].get("keyword_weights", {})
+        default_min_score = config["monitoring"].get("min_score", 0)
         classified_entries = classify_entries(
             normalized_entries,
             keywords,
@@ -126,22 +142,7 @@ def run_rss_pipeline(
             f"分類完了: 全{len(classified_entries)}件 / 監視一致{matched_count}件",
         )
 
-        source_min_scores = {
-            cfg.get("name", cfg.get("url", "unknown")): cfg["min_score"]
-            for cfg in rss_configs
-            if "min_score" in cfg
-        }
-        if source_min_scores:
-            before_filter = len(classified_entries)
-            classified_entries = [
-                a for a in classified_entries
-                if a.get("score", 0) >= source_min_scores.get(a.get("source", ""), 0)
-            ]
-            LOGGER.info(
-                "Min score filtering: before=%s after=%s",
-                before_filter,
-                len(classified_entries),
-            )
+        source_min_scores = _build_source_min_score_map(rss_configs, default_min_score)
 
         # 修正1: 実行をまたいだ既出URL除去（SQLite永続化）
         seen_before_count = len(classified_entries)
@@ -193,12 +194,17 @@ def run_rss_pipeline(
 
         exploration_articles = classified_entries
         monitoring_articles = [
-            article for article in classified_entries if article.get("matched") is True
+            article for article in classified_entries
+            if article.get("matched") is True
+            and article.get("score", 0) >= source_min_scores.get(
+                article.get("source", ""), default_min_score
+            )
         ]
         LOGGER.info(
-            "Article split completed: exploration=%s monitoring=%s",
+            "Article split completed: exploration=%s monitoring=%s (min_score default=%s)",
             len(exploration_articles),
             len(monitoring_articles),
+            default_min_score,
         )
 
         exploration_markdown = build_markdown(
@@ -229,12 +235,16 @@ def run_rss_pipeline(
         exploration_markdown_ja = translate_markdown_to_japanese(
             exploration_markdown,
             document_type="exploration",
-            use_ollama=False,
+            use_ollama=True,
+            ollama_host=ollama_host,
+            ollama_model=ollama_model,
         )
         monitoring_markdown_ja = translate_markdown_to_japanese(
             monitoring_markdown,
             document_type="monitoring",
             use_ollama=True,
+            ollama_host=ollama_host,
+            ollama_model=ollama_model,
         )
         LOGGER.info("Japanese translation completed")
         emit_progress("INFO", "日本語翻訳完了")
