@@ -11,7 +11,7 @@ def test_translate_markdown_uses_ollama_for_plain_lines(monkeypatch):
     monkeypatch.setattr(
         markdown_translator,
         "_translate_text_with_ollama",
-        lambda text, content_type="general", ollama_host="http://localhost:11434": "日本語訳",
+        lambda text, content_type="general", ollama_host="http://localhost:11434", ollama_model="gemma3n:e4b": "日本語訳",
     )
 
     result = markdown_translator.translate_markdown_to_japanese(

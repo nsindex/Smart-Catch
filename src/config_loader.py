@@ -96,6 +96,7 @@ def validate_config(config: dict) -> None:
         if not isinstance(ollama_config, dict):
             raise ValueError("ollama must be an object")
         _validate_optional_str(ollama_config, "host")
+        _validate_optional_str(ollama_config, "model")
 
 
 def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict:
