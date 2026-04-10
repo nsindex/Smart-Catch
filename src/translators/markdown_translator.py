@@ -102,7 +102,7 @@ TERM_MAP = {
 
 _DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 _DEFAULT_OLLAMA_MODEL = "gemma3n:e4b"
-OLLAMA_TIMEOUT_SECONDS = 12
+OLLAMA_TIMEOUT_SECONDS = 60
 ASCII_WORD_PATTERN = re.compile(r"\b[A-Za-z][A-Za-z0-9'\-\.]*\b")
 HIGHLIGHT_ARTICLE_PATTERN = re.compile(r"^- \[(?P<topic>[^\]]+)\] (?P<title>.*) \(Score: (?P<score>[^\)]+)\)$")
 TOPIC_ID_PATTERN = re.compile(r"^#{1,6}\s+topic_\d+$")
@@ -325,8 +325,12 @@ def _translate_text_with_ollama(
 
     cache_key = f"{content_type}:{text}"
     if cache_key in _TRANSLATION_CACHE:
-        return _TRANSLATION_CACHE[cache_key]
+        cached = _TRANSLATION_CACHE[cache_key]
+        if cached is None:
+            LOGGER.debug("Ollama translation: cache miss (previously failed): %r", text[:80])
+        return cached
 
+    LOGGER.debug("Ollama translation: requesting %s %r", content_type, text[:80])
     prompt = _build_title_translation_prompt(text) if content_type == "title" else _build_translation_prompt(text)
     payload = {
         "model": ollama_model,
@@ -348,23 +352,29 @@ def _translate_text_with_ollama(
         with urllib.request.urlopen(request, timeout=OLLAMA_TIMEOUT_SECONDS) as response:
             response_data = json.loads(response.read().decode("utf-8"))
     except urllib.error.URLError as exc:
-        reason = getattr(exc, "reason", None)
-        if isinstance(reason, (TimeoutError, OSError)) and not isinstance(reason, ConnectionRefusedError):
-            # タイムアウト等の一時的エラーはキャッシュして再試行を抑制
-            _TRANSLATION_CACHE[cache_key] = None
-        # 接続拒否（Ollama未起動）はキャッシュしない（起動後に再試行できるよう）
+        LOGGER.warning("Ollama request failed (URLError): %s | host=%s", exc, ollama_host)
+        # タイムアウト・接続エラーはキャッシュしない（ホスト変更後にリトライできるよう）
         return None
-    except (TimeoutError, ValueError, OSError):
-        _TRANSLATION_CACHE[cache_key] = None
+    except TimeoutError as exc:
+        LOGGER.warning("Ollama request timed out (%ss): %s", OLLAMA_TIMEOUT_SECONDS, exc)
+        return None
+    except (ValueError, OSError) as exc:
+        LOGGER.warning("Ollama request error: %s", exc)
         return None
 
     translated_text = response_data.get("response")
     if not isinstance(translated_text, str):
+        LOGGER.warning("Ollama response missing 'response' field: %r", response_data)
         _TRANSLATION_CACHE[cache_key] = None
         return None
 
     translated_text = translated_text.strip()
     if not _looks_like_markdown_safe_translation(text, translated_text):
+        LOGGER.warning(
+            "Ollama output rejected by validator: source=%r translated=%r",
+            text[:60],
+            translated_text[:60],
+        )
         _TRANSLATION_CACHE[cache_key] = None
         return None
 
