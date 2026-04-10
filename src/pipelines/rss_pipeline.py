@@ -22,6 +22,17 @@ from src.writers.markdown_writer import build_markdown
 LOGGER = logging.getLogger(__name__)
 
 
+def _build_source_min_score_map(
+    rss_configs: list[dict],
+    default_min_score: int,
+) -> dict[str, int]:
+    min_scores: dict[str, int] = {}
+    for cfg in rss_configs:
+        source_name = cfg.get("name", cfg.get("url", "unknown"))
+        min_scores[source_name] = cfg.get("min_score", default_min_score)
+    return min_scores
+
+
 def run_rss_pipeline(
     config_path: str = "config/config.json",
     progress_callback: Callable[[str, str], None] | None = None,
@@ -108,6 +119,7 @@ def run_rss_pipeline(
 
         keywords = config["monitoring"]["keywords"]
         keyword_weights = config["monitoring"].get("keyword_weights", {})
+        default_min_score = config["monitoring"].get("min_score", 0)
         classified_entries = classify_entries(
             normalized_entries,
             keywords,
@@ -126,22 +138,18 @@ def run_rss_pipeline(
             f"分類完了: 全{len(classified_entries)}件 / 監視一致{matched_count}件",
         )
 
-        source_min_scores = {
-            cfg.get("name", cfg.get("url", "unknown")): cfg["min_score"]
-            for cfg in rss_configs
-            if "min_score" in cfg
-        }
-        if source_min_scores:
-            before_filter = len(classified_entries)
-            classified_entries = [
-                a for a in classified_entries
-                if a.get("score", 0) >= source_min_scores.get(a.get("source", ""), 0)
-            ]
-            LOGGER.info(
-                "Min score filtering: before=%s after=%s",
-                before_filter,
-                len(classified_entries),
-            )
+        source_min_scores = _build_source_min_score_map(rss_configs, default_min_score)
+        before_filter = len(classified_entries)
+        classified_entries = [
+            a for a in classified_entries
+            if a.get("score", 0) >= source_min_scores.get(a.get("source", ""), default_min_score)
+        ]
+        LOGGER.info(
+            "Min score filtering: default=%s before=%s after=%s",
+            default_min_score,
+            before_filter,
+            len(classified_entries),
+        )
 
         # 修正1: 実行をまたいだ既出URL除去（SQLite永続化）
         seen_before_count = len(classified_entries)
